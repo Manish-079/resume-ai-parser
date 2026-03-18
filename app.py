@@ -8,27 +8,19 @@ from openai import OpenAI
 import PyPDF2
 import streamlit.components.v1 as components
 
-
 # =========================================================
-
 # PAGE CONFIG
-
 # =========================================================
-
 st.set_page_config(
     page_title="IT Solutions Worldwide",
     layout="wide",
     initial_sidebar_state="expanded"
-
 )
 
 
 # =========================================================
-
 # TYPING INDICATOR FUNCTION
-
 # =========================================================
-
 def st_typing_effect():
     """Injects JS to show a typing indicator and highlight the box active state."""
     components.html(
@@ -63,43 +55,29 @@ def st_typing_effect():
     )
 
 
-
 # =========================================================
-
 # DEFAULTS
-
 # =========================================================
-
 DEFAULT_JOB_DESCRIPTION = "Give me the best candidates"
-
 DEFAULT_ANALYSIS_PROMPT = "Analyze this CV and extract the most important candidate information."
-
 
 if "job_description_input" not in st.session_state:
     st.session_state.job_description_input = ""
 
-
 if "analysis_prompt_input" not in st.session_state:
     st.session_state.analysis_prompt_input = ""
 
-
 # =========================================================
-
 # OPENAI (VEILIG VIA STREAMLIT SECRETS)
-
 # =========================================================
-
 try:
     # Dit haalt de sleutel uit je .streamlit/secrets.toml bestand
     OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-
 except Exception:
     # Als het bestand niet gevonden wordt, blijft de sleutel leeg
     OPENAI_API_KEY = ""
 
-
 client = OpenAI(api_key=OPENAI_API_KEY.strip()) if OPENAI_API_KEY.strip() else None
-
 
 # =========================================================
 
@@ -189,14 +167,9 @@ def init_db():
                 cursor.execute(query)
         conn.commit()
 
-
-
 # =========================================================
-
 # HELPERS
-
 # =========================================================
-
 def read_pdf_text(uploaded_file):
     try:
         uploaded_file.seek(0)
@@ -211,12 +184,10 @@ def read_pdf_text(uploaded_file):
         return ""
 
 
-
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, "rb") as f:
         data = f.read()
     return base64.b64encode(data).decode()
-
 
 
 def safe_str(value):
@@ -225,7 +196,6 @@ def safe_str(value):
     if isinstance(value, list):
         return ", ".join(str(v) for v in value if v)
     return str(value).strip()
-
 
 
 def safe_int(value, default=None):
@@ -241,33 +211,22 @@ def safe_int(value, default=None):
         return default
 
 
-
 # =========================================================
-
 # OPENAI FUNCTIONS
-
 # =========================================================
-
 def extract_resume_only(resume_text, analysis_prompt):
     if not client:
         raise ValueError("OpenAI API key is missing. Paste your API key in OPENAI_API_KEY.")
 
     prompt = f"""
-
 You are an AI recruitment assistant for IT Solutions Worldwide.
 
-
 Task:
-
 1. Extract resume information from the candidate CV.
-
 2. Analyze the candidate professionally.
-
 3. Return ONLY valid JSON.
 
-
 Return JSON in this exact structure:
-
 {{
   "name": "",
   "email": "",
@@ -286,34 +245,21 @@ Return JSON in this exact structure:
   "job_title": "",
   "certifications": "",
   "fit_summary": ""
-
 }}
 
-
 Rules:
-
 - fit_summary must be short, professional, and explain the candidate profile in 3 to 5 sentences
-
 - do NOT return a match score
-
 - if information is missing, return an empty string
-
 - extract only what is present in the resume
-
 - do not invent facts
-
 - skills, languages, and certifications should be returned as comma-separated strings
 
-
 Analysis focus:
-
 {analysis_prompt}
 
-
 Resume:
-
 {resume_text}
-
 """
 
     response = client.chat.completions.create(
@@ -349,27 +295,19 @@ Resume:
     return normalized
 
 
-
 def extract_and_score_resume(resume_text, job_desc):
     if not client:
         raise ValueError("OpenAI API key is missing. Paste your API key in OPENAI_API_KEY.")
 
     prompt = f"""
-
 You are an AI recruitment assistant for IT Solutions Worldwide.
 
-
 Task:
-
 1. Extract resume information from the candidate CV.
-
 2. Compare the resume against the job description.
-
 3. Return ONLY valid JSON.
 
-
 Return JSON in this exact structure:
-
 {{
   "name": "",
   "email": "",
@@ -389,34 +327,21 @@ Return JSON in this exact structure:
   "certifications": "",
   "match_score": 0,
   "fit_summary": ""
-
 }}
 
-
 Rules:
-
 - match_score must be an integer from 0 to 100
-
 - fit_summary must be short, professional, and clearly explain the score in 2 to 4 sentences
-
 - if information is missing, return an empty string
-
 - extract only what is present in the resume
-
 - do not invent facts
-
 - skills, languages, and certifications should be returned as comma-separated strings
 
-
 Job Description:
-
 {job_desc}
 
-
 Resume:
-
 {resume_text}
-
 """
 
     response = client.chat.completions.create(
@@ -452,13 +377,9 @@ Resume:
     return normalized
 
 
-
 # =========================================================
-
 # DATABASE ACTIONS
-
 # =========================================================
-
 def upsert_resume(file_name, result):
     insert_query = """
     INSERT INTO resume (
@@ -503,13 +424,11 @@ def upsert_resume(file_name, result):
         conn.commit()
 
 
-
 def clear_database():
     with connect_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute("TRUNCATE TABLE resume RESTART IDENTITY;")
         conn.commit()
-
 
 
 def load_resumes():
@@ -527,30 +446,19 @@ def load_resumes():
     return df
 
 
-
 # =========================================================
-
 # INITIALIZE DATABASE
-
 # =========================================================
-
 try:
     init_db()
-
 except Exception as e:
     st.error(f"Database initialization error: {e}")
 
-
 # =========================================================
-
 # CSS - LOGO COLORS + ANIMATION
-
 # =========================================================
-
 st.markdown("""
-
 <style>
-
 :root {
     --primary: #0F6B74;
     --primary-dark: #0B545B;
@@ -561,9 +469,7 @@ st.markdown("""
     --text: #0B545B;
     --muted: #6A8E91;
     --soft-gray: #EEF3F3;
-
 }
-
 
 #typing-indicator {
     display: none;
@@ -572,47 +478,33 @@ st.markdown("""
     font-weight: bold;
     margin-bottom: 5px;
     animation: blink 1s infinite;
-
 }
 
-
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
 
 textarea {
     caret-color: var(--primary) !important;
     transition: all 0.3s ease-in-out !important;
-
 }
-
 
 textarea:focus {
     border-color: var(--primary) !important;
     box-shadow: 0 0 10px rgba(15, 107, 116, 0.2) !important;
     background-color: #FAFCFC !important;
-
 }
-
 
 html, body, [class*="css"] {
     font-family: "Segoe UI", sans-serif;
-
 }
-
 
 .stApp {
     background: linear-gradient(180deg, #F7FAFA 0%, #EEF4F4 100%);
     color: var(--text);
-
 }
 
-
 #MainMenu {visibility: hidden;}
-
 footer {visibility: hidden;}
-
 header {visibility: hidden;}
-
 
 .block-container {
     padding-top: 1rem;
@@ -620,24 +512,18 @@ header {visibility: hidden;}
     padding-left: 2rem;
     padding-right: 2rem;
     max-width: 100%;
-
 }
-
 
 [data-testid="stSidebar"] {
     background: #FFFFFF;
     border-right: 1px solid var(--border);
-
 }
-
 
 [data-testid="stSidebar"] .block-container {
     padding-top: 1.1rem;
     padding-left: 1.1rem;
     padding-right: 1.1rem;
-
 }
-
 
 .sidebar-section-title {
     color: var(--primary);
@@ -647,9 +533,7 @@ header {visibility: hidden;}
     margin-top: 0.8rem;
     margin-bottom: 1rem;
     letter-spacing: 0.6px;
-
 }
-
 
 .main-title {
     font-size: 3rem;
@@ -657,18 +541,14 @@ header {visibility: hidden;}
     color: var(--primary);
     margin-bottom: 0.2rem;
     line-height: 1.05;
-
 }
-
 
 .sub-title {
     font-size: 1.15rem;
     color: var(--muted);
     margin-bottom: 1rem;
     font-weight: 500;
-
 }
-
 
 .section-line {
     height: 4px;
@@ -676,9 +556,7 @@ header {visibility: hidden;}
     background: var(--primary);
     border-radius: 999px;
     margin-bottom: 1.8rem;
-
 }
-
 
 .metric-card {
     background: var(--card);
@@ -687,9 +565,7 @@ header {visibility: hidden;}
     padding: 22px;
     box-shadow: 0 8px 20px rgba(15, 107, 116, 0.08);
     min-height: 124px;
-
 }
-
 
 .metric-label {
     color: var(--muted);
@@ -697,27 +573,21 @@ header {visibility: hidden;}
     margin-bottom: 10px;
     font-weight: 700;
     text-transform: uppercase;
-
 }
-
 
 .metric-value {
     color: var(--primary);
     font-size: 2.2rem;
     font-weight: 800;
     line-height: 1;
-
 }
-
 
 .small-muted {
     color: var(--muted);
     font-size: 0.95rem;
     font-weight: 500;
     margin-bottom: 0.6rem;
-
 }
-
 
 .stButton > button {
     width: 100%;
@@ -729,16 +599,12 @@ header {visibility: hidden;}
     font-size: 0.98rem;
     padding: 0.82rem 1rem;
     box-shadow: 0 10px 20px rgba(15, 107, 116, 0.18);
-
 }
-
 
 .stButton > button:hover {
     background: var(--primary-dark);
     color: white !important;
-
 }
-
 
 div[data-baseweb="select"] > div {
     background: #FFFFFF !important;
@@ -746,41 +612,30 @@ div[data-baseweb="select"] > div {
     border-radius: 14px !important;
     min-height: 50px !important;
     box-shadow: none !important;
-
 }
-
 
 div[data-baseweb="select"] span {
     color: #0B545B !important;
     font-weight: 700 !important;
     opacity: 1 !important;
-
 }
-
 
 div[data-baseweb="select"] input {
     color: #0B545B !important;
     -webkit-text-fill-color: #0B545B !important;
     opacity: 1 !important;
-
 }
-
 
 div[data-baseweb="select"] svg {
     fill: #0F6B74 !important;
-
 }
-
 
 div[data-baseweb="select"] * {
     color: #0B545B !important;
     opacity: 1 !important;
-
 }
 
-
 textarea,
-
 .stTextArea textarea {
     background: #FFFFFF !important;
     border: 1px solid var(--border) !important;
@@ -788,32 +643,24 @@ textarea,
     color: var(--text) !important;
     font-size: 1rem !important;
     padding: 14px !important;
-
 }
-
 
 .stTextArea textarea::placeholder {
     color: var(--muted) !important;
     opacity: 1 !important;
-
 }
-
 
 [data-testid="stFileUploader"] {
     background: #FFFFFF !important;
     border: 2px dashed var(--primary) !important;
     border-radius: 24px !important;
     padding: 22px !important;
-
 }
-
 
 [data-testid="stFileUploader"] section {
     background: transparent !important;
     border: none !important;
-
 }
-
 
 [data-testid="stFileUploader"] button {
     background: var(--primary) !important;
@@ -821,9 +668,7 @@ textarea,
     border: none !important;
     border-radius: 12px !important;
     font-weight: 700 !important;
-
 }
-
 
 .summary-box {
     background: #F7FBFB;
@@ -832,9 +677,7 @@ textarea,
     padding: 16px;
     color: var(--text);
     line-height: 1.6;
-
 }
-
 
 .detail-label {
     color: var(--muted);
@@ -843,9 +686,7 @@ textarea,
     margin-bottom: 2px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
-
 }
-
 
 .detail-value {
     color: var(--text);
@@ -853,25 +694,19 @@ textarea,
     margin-bottom: 12px;
     word-break: break-word;
     line-height: 1.45;
-
 }
-
 
 [data-testid="stExpander"] {
     border: 1px solid var(--border) !important;
     border-radius: 18px !important;
     background: #FFFFFF !important;
     overflow: hidden;
-
 }
-
 
 [data-testid="stExpander"] summary {
     font-weight: 700;
     color: var(--primary) !important;
-
 }
-
 
 .match-badge {
     background: var(--primary-soft);
@@ -884,9 +719,7 @@ textarea,
     text-align: center;
     display: inline-block;
     white-space: nowrap;
-
 }
-
 
 .mode-box {
     background: #FFFFFF;
@@ -895,33 +728,24 @@ textarea,
     padding: 12px 16px;
     margin-bottom: 14px;
     color: var(--text);
-
 }
-
 
 hr {
     border: none;
     border-top: 1px solid var(--border);
     margin: 1.4rem 0;
-
 }
-
 
 h2, h3 {
     color: var(--primary);
-
 }
-
 
 [data-testid="stAlert"] {
     border-radius: 16px !important;
     border: 1px solid var(--border) !important;
-
 }
 
-
 /* Styling for the Use Default | Clear links */
-
 div[data-testid="stHorizontalBlock"] div.stButton > button {
     background: transparent !important;
     border: none !important;
@@ -933,36 +757,25 @@ div[data-testid="stHorizontalBlock"] div.stButton > button {
     min-height: 0px !important;
     font-size: 0.95rem !important;
     font-weight: 500 !important;
-
 }
-
 
 div[data-testid="stHorizontalBlock"] div.stButton > button:hover {
     color: #0F6B74 !important;
     text-decoration: underline !important;
     background: transparent !important;
-
 }
-
 
 .divider-pipe {
     color: #D6E6E7;
     margin: 0 2px;
     font-weight: 300;
-
 }
-
 </style>
-
 """, unsafe_allow_html=True)
 
-
 # =========================================================
-
 # SIDEBAR
-
 # =========================================================
-
 with st.sidebar:
     image_path = os.path.join(os.path.dirname(__file__), "images", "image_18.png")
     if os.path.exists(image_path):
@@ -986,41 +799,26 @@ with st.sidebar:
     analyze_clicked = st.button("Run Analysis")
     clear_clicked = st.button("Clear Database")
 
-
 # =========================================================
-
 # HEADER
-
 # =========================================================
-
 st.markdown('<div class="main-title">IT Solutions Worldwide</div>', unsafe_allow_html=True)
-
 st.markdown('<div class="sub-title">Professional Candidate Intelligence Dashboard</div>', unsafe_allow_html=True)
-
 st.markdown('<div class="section-line"></div>', unsafe_allow_html=True)
-
 
 if not OPENAI_API_KEY.strip():
     st.warning("Paste your OpenAI API key in the OPENAI_API_KEY variable before analyzing resumes.")
 
-
 st.markdown(
     f'<div class="mode-box"><strong>Current Mode:</strong> {selected_mode}</div>',
     unsafe_allow_html=True
-
 )
 
-
 # =========================================================
-
 # INPUT AREA
-
 # =========================================================
-
 st_typing_effect()
-
 left_col, right_col = st.columns(2, gap="large")
-
 
 with left_col:
     st.markdown('<div id="typing-indicator">Typing...</div>', unsafe_allow_html=True)
@@ -1060,7 +858,6 @@ with left_col:
     else:
         st.text_area("Prompt", height=320, label_visibility="collapsed", key="analysis_prompt_input", placeholder=DEFAULT_ANALYSIS_PROMPT)
 
-
 with right_col:
     if selected_mode == "Analyze CV":
         st.markdown("## Upload One CV")
@@ -1088,13 +885,9 @@ with right_col:
             label_visibility="collapsed"
         )
 
-
 # =========================================================
-
 # ACTIONS
-
 # =========================================================
-
 if analyze_clicked:
     if not OPENAI_API_KEY.strip():
         st.error("OpenAI API key is missing.")
@@ -1152,7 +945,6 @@ if analyze_clicked:
         except Exception as e:
             st.error(f"Error during analysis: {e}")
 
-
 if clear_clicked:
     try:
         clear_database()
@@ -1161,27 +953,18 @@ if clear_clicked:
     except Exception as e:
         st.error(f"Error clearing database: {e}")
 
-
 # =========================================================
-
 # LOAD DATA
-
 # =========================================================
-
 try:
     df = load_resumes()
-
 except Exception as e:
     df = pd.DataFrame()
     st.error(f"Database error: {e}")
 
-
 # =========================================================
-
 # METRICS
-
 # =========================================================
-
 if not df.empty:
     score_series = pd.to_numeric(df["match_score"], errors="coerce")
     rated_df = df[score_series.notna()].copy()
@@ -1191,16 +974,13 @@ if not df.empty:
     top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
     avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
     shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
-
 else:
     total_resumes = 0
     top_match = 0
     avg_score = 0
     shortlisted = 0
 
-
 m1, m2, m3, m4 = st.columns(4)
-
 
 with m1:
     st.markdown(
@@ -1213,7 +993,6 @@ with m1:
         unsafe_allow_html=True
     )
 
-
 with m2:
     st.markdown(
         f"""
@@ -1224,7 +1003,6 @@ with m2:
         """,
         unsafe_allow_html=True
     )
-
 
 with m3:
     st.markdown(
@@ -1237,7 +1015,6 @@ with m3:
         unsafe_allow_html=True
     )
 
-
 with m4:
     st.markdown(
         f"""
@@ -1249,19 +1026,13 @@ with m4:
         unsafe_allow_html=True
     )
 
-
 # =========================================================
-
 # CANDIDATE RESULTS
-
 # =========================================================
-
 st.markdown("## Candidate Results")
-
 
 if df.empty:
     st.info("No resumes have been analyzed yet.")
-
 else:
     df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce")
     df = df.sort_values(by=["match_score_num", "created_at"], ascending=[False, False], na_position="last")
@@ -1329,3 +1100,4 @@ else:
                     if safe_str(value):
                         st.markdown(f'<div class="detail-label">{label}</div>', unsafe_allow_html=True)
                         st.markdown(f'<div class="detail-value">{safe_str(value)}</div>', unsafe_allow_html=True)
+
