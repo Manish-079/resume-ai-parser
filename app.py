@@ -69,13 +69,14 @@ if "analysis_prompt_input" not in st.session_state:
 
 # =========================================================
 # OPENAI (VEILIG VIA STREAMLIT SECRETS)
-# =========================================================
-try:
-    # Dit haalt de sleutel uit je .streamlit/secrets.toml bestand
-    OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-except Exception:
-    # Als het bestand niet gevonden wordt, blijft de sleutel leeg
-    OPENAI_API_KEY = ""
+# Check eerst Render Environment Variables, daarna Streamlit Secrets
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    try:
+        OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+    except Exception:
+        OPENAI_API_KEY = ""
 
 client = OpenAI(api_key=OPENAI_API_KEY.strip()) if OPENAI_API_KEY.strip() else None
 
