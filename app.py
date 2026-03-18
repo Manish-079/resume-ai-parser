@@ -1,20 +1,11 @@
-import
-os
-
+import os
 import json
-
 import base64
-
 import streamlit as st
-
 import pandas as pd
-
 import psycopg
-
 from openai import OpenAI
-
 import PyPDF2
-
 import streamlit.components.v1 as components
 
 
@@ -30,7 +21,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 
 )
-
 
 
 # =========================================================
