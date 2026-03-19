@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import os
 import re
 import json
@@ -11,24 +10,29 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # =========================================================
-# OPENAI API
+# OPENAI API (VEILIG VIA CLOUD)
 # =========================================================
 
-# 🔑 PLAK HIER JE OPENAI API KEY
-OPENAI_API_KEY = "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"
+# Haal de sleutel op uit de Environment Variables van Render
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client = OpenAI(
     api_key=OPENAI_API_KEY
 )
 
-folder_path = "resumes"
+# Pad naar de resumes (op Render is dit de hoofdmap of een specifieke map in je repo)
+folder_path = os.getenv("RESUME_FOLDER", "resumes")
+
+# Zorg dat de map bestaat om errors te voorkomen
+if not os.path.exists(folder_path):
+    os.makedirs(folder_path)
+
 CURRENT_JD = "We are looking for a Python Developer with experience in SQL, REST APIs, and AWS. The candidate should have at least 3 years of experience."
 
 skills_list = [
     "Python", "SQL", "Power BI", "Excel", "Machine Learning",
     "REST APIs", "Git", "AWS", "Azure"
 ]
-
 
 # =========================================================
 # 2. HELPERS (Voorkomt 'dict' errors)
@@ -49,13 +53,22 @@ def safe_str(value):
 
 def connect_database():
     try:
-        conn_info = "dbname=resume_parser user=postgres password=root host=localhost port=5432"
+        # We halen de gegevens op uit de Environment Variables van Render
+        # Als die er niet zijn (bijvoorbeeld op je eigen pc), gebruikt hij 'localhost'
+        DB_HOST = os.getenv("DB_HOST", "localhost")
+        DB_NAME = os.getenv("DB_NAME", "resume_parser")
+        DB_USER = os.getenv("DB_USER", "postgres")
+        DB_PASS = os.getenv("DB_PASSWORD", "root")
+        DB_PORT = os.getenv("DB_PORT", "5432")
+
+        conn_info = f"host={DB_HOST} dbname={DB_NAME} user={DB_USER} password={DB_PASS} port={DB_PORT}"
+
         connection = psycopg.connect(conn_info)
         return connection
     except Exception as err:
-        print(f"❌ Fout bij verbinden met PostgreSQL: {err}")
-        exit(1)
-
+        print(f"❌ Fout bij verbinden met database: {err}")
+        # In de cloud liever geen exit(1), anders stopt je hele app
+        return None
 
 def save_to_database(conn, data):
     query = """
@@ -224,7 +237,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-=======
+
 import os
 import re
 import json
@@ -461,4 +474,3 @@ def main():
 if __name__ == "__main__":
     main()
 
->>>>>>> 516125e (Update secrets voor cloud)
