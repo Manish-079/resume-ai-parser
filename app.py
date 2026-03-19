@@ -67,6 +67,10 @@ if "job_description_input" not in st.session_state:
 if "analysis_prompt_input" not in st.session_state:
     st.session_state.analysis_prompt_input = ""
 
+# NEW: Toggle for resetting visibility without deleting DB
+if "show_current_results" not in st.session_state:
+    st.session_state.show_current_results = True
+
 # =========================================================
 # OPENAI (VEILIG VIA STREAMLIT SECRETS)
 # Check eerst Render Environment Variables, daarna Streamlit Secrets
@@ -464,6 +468,12 @@ st.markdown("""
     --soft-gray: #EEF3F3;
 }
 
+/* Fix for visibility of labels in Database Page/Expander */
+label[data-testid="stWidgetLabel"] p {
+    color: #444444 !important; /* Dark Grey */
+    font-weight: 700 !important;
+}
+
 /* Hide default Streamlit multipage navigation */
 [data-testid="stSidebarNav"] {
     display: none !important;
@@ -662,24 +672,18 @@ textarea,
     opacity: 1 !important;
 }
 
-[data-testid="stFileUploader"] {
-    background: #FFFFFF !important;
-    border: 2px dashed var(--primary) !important;
-    border-radius: 24px !important;
-    padding: 22px !important;
+/* FIX: maak upload tekst zichtbaar (donkergrijs) */
+[data-testid="stFileUploader"] * {
+    color: #444444 !important; /* donkergrijs */
+    opacity: 1 !important;
 }
 
-[data-testid="stFileUploader"] section {
-    background: transparent !important;
-    border: none !important;
-}
+/* Specifiek voor de drag & drop tekst */
+[data-testid="stFileUploader"] label,
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploader"] small {
+    color: #444444 !important;
 
-[data-testid="stFileUploader"] button {
-    background: var(--primary) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 12px !important;
-    font-weight: 700 !important;
 }
 
 .summary-box {
@@ -812,10 +816,11 @@ with st.sidebar:
     )
 
     analyze_clicked = st.button("Run Analysis")
-    # UPDATED BUTTON: "Clear View" replaces "Clear Database"
+    # UPDATED BUTTON: "Clear View" resets state without deleting database
     if st.button("Clear View"):
         st.session_state.job_description_input = ""
         st.session_state.analysis_prompt_input = ""
+        st.session_state.show_current_results = False
         st.rerun()
 
 # =========================================================
@@ -922,6 +927,7 @@ with right_col:
 # ACTIONS
 # =========================================================
 if analyze_clicked:
+    st.session_state.show_current_results = True
     if not OPENAI_API_KEY.strip():
         st.error("OpenAI API key is missing.")
     elif not uploaded_files:
@@ -984,14 +990,13 @@ if analyze_clicked:
 try:
     df = load_resumes()
 except Exception as e:
-    # This creates an empty table if the database fails, preventing the crash
     df = pd.DataFrame()
     st.error(f"Database error: {e}")
 
 # =========================================================
-# METRICS AND RESULTS DISPLAY
+# METRICS AND RESULTS DISPLAY (HIDDEN IF VIEW CLEARED)
 # =========================================================
-if not df.empty:
+if st.session_state.show_current_results and not df.empty:
     score_series = pd.to_numeric(df["match_score"], errors="coerce")
     rated_df = df[score_series.notna()].copy()
     rated_df["match_score"] = pd.to_numeric(rated_df["match_score"], errors="coerce")
