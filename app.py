@@ -1016,15 +1016,43 @@ if st.session_state.show_results:
             f'<div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value">{shortlisted}</div></div>',
             unsafe_allow_html=True)
 
-    st.markdown("## Candidate Results")
+    # =========================================================
+    # SEARCH & FILTER SECTION (Nieuw voor Ahmed & Amer)
+    # =========================================================
+    st.markdown("## 🔍 Database Explorer")
+    with st.expander("Filter & Search Candidates", expanded=True):
+        f1, f2 = st.columns([2, 1])
+        with f1:
+            search_query = st.text_input("Search by Name or Skills", placeholder="e.g. Python, Java, Ruben...")
+        with f2:
+            min_score = st.slider("Minimum Match Score", 0, 100, 0)
 
-    if df.empty:
-        st.info("No resumes have been analyzed yet.")
+    # Pas de dataframe aan op basis van filters
+    if not df.empty:
+        # Zorg dat scores nummers zijn voor de filter
+        df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce").fillna(0)
+
+        # Filter logica
+        filtered_df = df[df["match_score_num"] >= min_score]
+
+        if search_query:
+            q = search_query.lower()
+            filtered_df = filtered_df[
+                filtered_df['name'].str.lower().str.contains(q, na=False) |
+                filtered_df['skills'].str.lower().str.contains(q, na=False)
+                ]
+
+        # Sorteer altijd op hoogste score eerst
+        filtered_df = filtered_df.sort_values(by="match_score_num", ascending=False)
     else:
-        df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce")
-        df = df.sort_values(by=["match_score_num", "created_at"], ascending=[False, False], na_position="last")
+        filtered_df = df
 
-        for _, row in df.iterrows():
+    st.markdown(f"## Candidate Results ({len(filtered_df)})")
+
+    if filtered_df.empty:
+        st.info("No candidates match your search filters.")
+    else:
+        for _, row in filtered_df.iterrows():
             candidate_name = safe_str(row.get("name")) or safe_str(row.get("file_name"))
             score = safe_int(row.get("match_score"), None)
             analysis_mode = safe_str(row.get("analysis_mode"))
