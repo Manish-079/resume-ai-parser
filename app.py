@@ -919,6 +919,20 @@ if analyze_clicked:
                         skipped_count += 1
                         continue
 
+                    # --- START EFFICIENCY CHANGE (Feedback Amer/Ahmed) ---
+                    # Check of de bestandsnaam al bestaat in de database
+                    with connect_db() as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT file_name FROM resume WHERE file_name = %s", (uploaded_file.name,))
+                            exists = cur.fetchone()
+
+                    if exists:
+                        # Als het al bestaat, overslaan we de AI parsing
+                        st.info(f"✔ Skipping '{uploaded_file.name}': Record already exists in Database.")
+                        processed_count += 1
+                        continue
+                    # --- END EFFICIENCY CHANGE ---
+
                     resume_text = read_pdf_text(uploaded_file)
 
                     if not resume_text:
