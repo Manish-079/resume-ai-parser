@@ -17,6 +17,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Initialize session state for view visibility
+if "show_results" not in st.session_state:
+    st.session_state.show_results = True
+
 
 # =========================================================
 # TYPING INDICATOR FUNCTION
@@ -98,7 +102,6 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_PORT = os.getenv("DB_PORT", "5432")
 
 
-
 def connect_db():
     return psycopg.connect(
         host=DB_HOST,
@@ -107,7 +110,6 @@ def connect_db():
         password=DB_PASSWORD,
         port=DB_PORT
     )
-
 
 
 def init_db():
@@ -167,6 +169,7 @@ def init_db():
             for query in alter_queries:
                 cursor.execute(query)
         conn.commit()
+
 
 # =========================================================
 # HELPERS
@@ -422,13 +425,6 @@ def upsert_resume(file_name, result):
     with connect_db() as conn:
         with conn.cursor() as cursor:
             cursor.execute(insert_query, payload)
-        conn.commit()
-
-
-def clear_database():
-    with connect_db() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute("TRUNCATE TABLE resume RESTART IDENTITY;")
         conn.commit()
 
 
@@ -798,7 +794,11 @@ with st.sidebar:
     )
 
     analyze_clicked = st.button("Run Analysis")
-    clear_clicked = st.button("Clear Database")
+
+    # Updated Button: Clear View from App instead of Database
+    if st.button("Clear View"):
+        st.session_state.show_results = False
+        st.rerun()
 
 # =========================================================
 # HEADER
@@ -849,15 +849,21 @@ with left_col:
 
     # 3. Explanation Text (Placed under the buttons)
     if selected_mode == "Analyze CV":
-        st.markdown('<div class="small-muted">Define what the AI should analyze in the CV (skills, experience, education, etc.). No rating will be given.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="small-muted">Define what the AI should analyze in the CV (skills, experience, education, etc.). No rating will be given.</div>',
+            unsafe_allow_html=True)
     else:
-        st.markdown('<div class="small-muted">Define the requirements for the job role to compare candidates against.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="small-muted">Define the requirements for the job role to compare candidates against.</div>',
+            unsafe_allow_html=True)
 
     # 4. The Text Area (Placed last)
     if selected_mode == "Compare / Rate CVs":
-        st.text_area("JD", height=320, label_visibility="collapsed", key="job_description_input", placeholder=DEFAULT_JOB_DESCRIPTION)
+        st.text_area("JD", height=320, label_visibility="collapsed", key="job_description_input",
+                     placeholder=DEFAULT_JOB_DESCRIPTION)
     else:
-        st.text_area("Prompt", height=320, label_visibility="collapsed", key="analysis_prompt_input", placeholder=DEFAULT_ANALYSIS_PROMPT)
+        st.text_area("Prompt", height=320, label_visibility="collapsed", key="analysis_prompt_input",
+                     placeholder=DEFAULT_ANALYSIS_PROMPT)
 
 with right_col:
     if selected_mode == "Analyze CV":
@@ -905,6 +911,9 @@ if analyze_clicked:
             skipped_count = 0
 
             with st.spinner("Analyzing resumes..."):
+                # Reset view when running a new analysis
+                st.session_state.show_results = True
+
                 for uploaded_file in uploaded_files:
                     if uploaded_file is None:
                         skipped_count += 1
@@ -946,14 +955,6 @@ if analyze_clicked:
         except Exception as e:
             st.error(f"Error during analysis: {e}")
 
-if clear_clicked:
-    try:
-        clear_database()
-        st.success("Database cleared successfully.")
-        st.rerun()
-    except Exception as e:
-        st.error(f"Error clearing database: {e}")
-
 # =========================================================
 # LOAD DATA
 # =========================================================
@@ -964,141 +965,96 @@ except Exception as e:
     st.error(f"Database error: {e}")
 
 # =========================================================
-# METRICS
+# METRICS & RESULTS VIEW
 # =========================================================
-if not df.empty:
-    score_series = pd.to_numeric(df["match_score"], errors="coerce")
-    rated_df = df[score_series.notna()].copy()
-    rated_df["match_score"] = pd.to_numeric(rated_df["match_score"], errors="coerce")
+if st.session_state.show_results:
+    if not df.empty:
+        score_series = pd.to_numeric(df["match_score"], errors="coerce")
+        rated_df = df[score_series.notna()].copy()
+        rated_df["match_score"] = pd.to_numeric(rated_df["match_score"], errors="coerce")
 
-    total_resumes = len(df)
-    top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
-    avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
-    shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
-else:
-    total_resumes = 0
-    top_match = 0
-    avg_score = 0
-    shortlisted = 0
+        total_resumes = len(df)
+        top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
+        avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
+        shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
+    else:
+        total_resumes = 0
+        top_match = 0
+        avg_score = 0
+        shortlisted = 0
 
-m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3, m4 = st.columns(4)
 
-with m1:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Total Resumes</div>
-            <div class="metric-value">{total_resumes}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    with m1:
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Total Resumes</div><div class="metric-value">{total_resumes}</div></div>',
+            unsafe_allow_html=True)
+    with m2:
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Top Match</div><div class="metric-value">{top_match}%</div></div>',
+            unsafe_allow_html=True)
+    with m3:
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Average Score</div><div class="metric-value">{avg_score}%</div></div>',
+            unsafe_allow_html=True)
+    with m4:
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value">{shortlisted}</div></div>',
+            unsafe_allow_html=True)
 
-with m2:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Top Match</div>
-            <div class="metric-value">{top_match}%</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.markdown("## Candidate Results")
 
-with m3:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Average Score</div>
-            <div class="metric-value">{avg_score}%</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    if df.empty:
+        st.info("No resumes have been analyzed yet.")
+    else:
+        df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce")
+        df = df.sort_values(by=["match_score_num", "created_at"], ascending=[False, False], na_position="last")
 
-with m4:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Shortlisted</div>
-            <div class="metric-value">{shortlisted}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        for _, row in df.iterrows():
+            candidate_name = safe_str(row.get("name")) or safe_str(row.get("file_name"))
+            score = safe_int(row.get("match_score"), None)
+            analysis_mode = safe_str(row.get("analysis_mode"))
 
-# =========================================================
-# CANDIDATE RESULTS
-# =========================================================
-st.markdown("## Candidate Results")
+            st.markdown("---")
 
-if df.empty:
-    st.info("No resumes have been analyzed yet.")
-else:
-    df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce")
-    df = df.sort_values(by=["match_score_num", "created_at"], ascending=[False, False], na_position="last")
-
-    for _, row in df.iterrows():
-        candidate_name = safe_str(row.get("name")) or safe_str(row.get("file_name"))
-        score = safe_int(row.get("match_score"), None)
-        analysis_mode = safe_str(row.get("analysis_mode"))
-
-        st.markdown("---")
-
-        if score is not None:
-            top_left, top_right = st.columns([4, 1])
-
-            with top_left:
+            if score is not None:
+                top_left, top_right = st.columns([4, 1])
+                with top_left:
+                    st.subheader(candidate_name)
+                    st.caption(f"Mode: {analysis_mode}")
+                with top_right:
+                    st.markdown(f'<div class="match-badge">{score}% Match</div>', unsafe_allow_html=True)
+            else:
                 st.subheader(candidate_name)
                 st.caption(f"Mode: {analysis_mode}")
 
-            with top_right:
-                st.markdown(
-                    f'<div class="match-badge">{score}% Match</div>',
-                    unsafe_allow_html=True
-                )
-        else:
-            st.subheader(candidate_name)
-            st.caption(f"Mode: {analysis_mode}")
+            summary_title = "AI Summary" if score is not None else "CV Analysis Summary"
+            st.markdown(f"**{summary_title}**")
+            st.markdown(f'<div class="summary-box">{safe_str(row.get("fit_summary"))}</div>', unsafe_allow_html=True)
 
-        summary_title = "AI Summary" if score is not None else "CV Analysis Summary"
-        st.markdown(f"**{summary_title}**")
-        st.markdown(
-            f'<div class="summary-box">{safe_str(row.get("fit_summary"))}</div>',
-            unsafe_allow_html=True
-        )
-
-        with st.expander(f"View Resume Details - {candidate_name}"):
-            info_col1, info_col2 = st.columns(2)
-
-            with info_col1:
-                for label, value in [
-                    ("Name", row.get("name")),
-                    ("Email", row.get("email")),
-                    ("Phone", row.get("phone")),
-                    ("Location", row.get("location")),
-                    ("Address", row.get("address")),
-                    ("Date of Birth", row.get("date_of_birth")),
-                    ("Degree", row.get("degree")),
-                    ("University", row.get("university")),
-                    ("Graduation Year", row.get("graduation_year")),
-                ]:
-                    if safe_str(value):
-                        st.markdown(f'<div class="detail-label">{label}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="detail-value">{safe_str(value)}</div>', unsafe_allow_html=True)
-
-            with info_col2:
-                for label, value in [
-                    ("Job Title", row.get("job_title")),
-                    ("Years of Experience", row.get("years_of_experience")),
-                    ("Skills", row.get("skills")),
-                    ("Languages", row.get("languages")),
-                    ("Certifications", row.get("certifications")),
-                    ("LinkedIn", row.get("linkedin")),
-                    ("GitHub", row.get("github")),
-                    ("File Name", row.get("file_name")),
-                ]:
-                    if safe_str(value):
-                        st.markdown(f'<div class="detail-label">{label}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="detail-value">{safe_str(value)}</div>', unsafe_allow_html=True)
-
+            with st.expander(f"View Resume Details - {candidate_name}"):
+                info_col1, info_col2 = st.columns(2)
+                with info_col1:
+                    for label, value in [("Name", row.get("name")), ("Email", row.get("email")),
+                                         ("Phone", row.get("phone")), ("Location", row.get("location")),
+                                         ("Address", row.get("address")), ("Date of Birth", row.get("date_of_birth")),
+                                         ("Degree", row.get("degree")), ("University", row.get("university")),
+                                         ("Graduation Year", row.get("graduation_year"))]:
+                        if safe_str(value):
+                            st.markdown(f'<div class="detail-label">{label}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="detail-value">{safe_str(value)}</div>', unsafe_allow_html=True)
+                with info_col2:
+                    for label, value in [("Job Title", row.get("job_title")),
+                                         ("Years of Experience", row.get("years_of_experience")),
+                                         ("Skills", row.get("skills")), ("Languages", row.get("languages")),
+                                         ("Certifications", row.get("certifications")),
+                                         ("LinkedIn", row.get("linkedin")), ("GitHub", row.get("github")),
+                                         ("File Name", row.get("file_name"))]:
+                        if safe_str(value):
+                            st.markdown(f'<div class="detail-label">{label}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="detail-value">{safe_str(value)}</div>', unsafe_allow_html=True)
+else:
+    st.info("View cleared. Run a new analysis or refresh the page to see candidates again.")
+    if st.button("Restore View"):
+        st.session_state.show_results = True
+        st.rerun()
