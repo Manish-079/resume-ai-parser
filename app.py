@@ -872,14 +872,20 @@ with left_col:
                     st.session_state.analysis_prompt_input = ""
 
     if selected_mode == "Analyze CV":
-        st.markdown('<div class="small-muted">Define what the AI should analyze in the CV (skills, experience, education, etc.). No rating will be given.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="small-muted">Define what the AI should analyze in the CV (skills, experience, education, etc.). No rating will be given.</div>',
+            unsafe_allow_html=True)
     else:
-        st.markdown('<div class="small-muted">Define the requirements for the job role to compare candidates against.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="small-muted">Define the requirements for the job role to compare candidates against.</div>',
+            unsafe_allow_html=True)
 
     if selected_mode == "Compare / Rate CVs":
-        st.text_area("JD", height=320, label_visibility="collapsed", key="job_description_input", placeholder=DEFAULT_JOB_DESCRIPTION)
+        st.text_area("JD", height=320, label_visibility="collapsed", key="job_description_input",
+                     placeholder=DEFAULT_JOB_DESCRIPTION)
     else:
-        st.text_area("Prompt", height=320, label_visibility="collapsed", key="analysis_prompt_input", placeholder=DEFAULT_ANALYSIS_PROMPT)
+        st.text_area("Prompt", height=320, label_visibility="collapsed", key="analysis_prompt_input",
+                     placeholder=DEFAULT_ANALYSIS_PROMPT)
 
 with right_col:
     if selected_mode == "Analyze CV":
@@ -977,6 +983,33 @@ if clear_clicked:
         st.error(f"Error clearing database: {e}")
 
 # =========================================================
+# LOAD DATA (CRITICAL FIX FOR NameError)
+# =========================================================
+try:
+    df = load_resumes()
+except Exception as e:
+    # This creates an empty table if the database fails, preventing the crash
+    df = pd.DataFrame()
+    st.error(f"Database error: {e}")
+
+# =========================================================
+# METRICS (Line 982 starts here)
+# =========================================================
+if not df.empty:
+    score_series = pd.to_numeric(df["match_score"], errors="coerce")
+    rated_df = df[score_series.notna()].copy()
+    rated_df["match_score"] = pd.to_numeric(rated_df["match_score"], errors="coerce")
+
+    total_resumes = len(df)
+    top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
+    avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
+    shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
+else:
+    total_resumes = 0
+    top_match = 0
+    avg_score = 0
+    shortlisted = 0
+# =========================================================
 # METRICS AND RESULTS DISPLAY
 # =========================================================
 if not df.empty:
@@ -988,16 +1021,24 @@ if not df.empty:
     top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
     avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
     shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
-    
+
     m1, m2, m3, m4 = st.columns(4)
     with m1:
-        st.markdown(f'<div class="metric-card"><div class="metric-label">Total Resumes</div><div class="metric-value">{total_resumes}</div></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Total Resumes</div><div class="metric-value">{total_resumes}</div></div>',
+            unsafe_allow_html=True)
     with m2:
-        st.markdown(f'<div class="metric-card"><div class="metric-label">Top Match</div><div class="metric-value">{top_match}%</div></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Top Match</div><div class="metric-value">{top_match}%</div></div>',
+            unsafe_allow_html=True)
     with m3:
-        st.markdown(f'<div class="metric-card"><div class="metric-label">Average Score</div><div class="metric-value">{avg_score}%</div></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Average Score</div><div class="metric-value">{avg_score}%</div></div>',
+            unsafe_allow_html=True)
     with m4:
-        st.markdown(f'<div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value">{shortlisted}</div></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value">{shortlisted}</div></div>',
+            unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("Latest Analysis Results")
