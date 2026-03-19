@@ -1,7 +1,7 @@
 import os
 import json
 import base64
-import streamlit as st
+import streamlit as st  # <--- Make sure 'as' is here
 import pandas as pd
 import psycopg
 from openai import OpenAI
@@ -812,7 +812,11 @@ with st.sidebar:
     )
 
     analyze_clicked = st.button("Run Analysis")
-    clear_clicked = st.button("Clear Database")
+    # UPDATED BUTTON: "Clear View" replaces "Clear Database"
+    if st.button("Clear View"):
+        st.session_state.job_description_input = ""
+        st.session_state.analysis_prompt_input = ""
+        st.rerun()
 
 # =========================================================
 # TOP RIGHT NAVIGATION
@@ -974,14 +978,6 @@ if analyze_clicked:
         except Exception as e:
             st.error(f"Error during analysis: {e}")
 
-if clear_clicked:
-    try:
-        clear_database()
-        st.success("Database cleared successfully.")
-        st.rerun()
-    except Exception as e:
-        st.error(f"Error clearing database: {e}")
-
 # =========================================================
 # LOAD DATA (CRITICAL FIX FOR NameError)
 # =========================================================
@@ -992,23 +988,6 @@ except Exception as e:
     df = pd.DataFrame()
     st.error(f"Database error: {e}")
 
-# =========================================================
-# METRICS (Line 982 starts here)
-# =========================================================
-if not df.empty:
-    score_series = pd.to_numeric(df["match_score"], errors="coerce")
-    rated_df = df[score_series.notna()].copy()
-    rated_df["match_score"] = pd.to_numeric(rated_df["match_score"], errors="coerce")
-
-    total_resumes = len(df)
-    top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
-    avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
-    shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
-else:
-    total_resumes = 0
-    top_match = 0
-    avg_score = 0
-    shortlisted = 0
 # =========================================================
 # METRICS AND RESULTS DISPLAY
 # =========================================================
@@ -1039,11 +1018,3 @@ if not df.empty:
         st.markdown(
             f'<div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value">{shortlisted}</div></div>',
             unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.subheader("Latest Analysis Results")
-    for _, row in df.head(5).iterrows():
-        with st.expander(f"{row['name']} - {row['job_title'] or 'No Title'}"):
-            st.write(row['fit_summary'])
-else:
-    st.info("No resumes found in the database. Upload some to get started.")
