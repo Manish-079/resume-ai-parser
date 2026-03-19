@@ -38,7 +38,7 @@ def st_typing_effect():
                         indicator.style.display = 'block';
                         clearTimeout(window.typingTimer);
                         window.typingTimer = setTimeout(() => {
-                            indicator.style.display = 'none';
+                            indicator.style.display =  'none';
                         }, 1000);
                     }
                 });
@@ -977,16 +977,7 @@ if clear_clicked:
         st.error(f"Error clearing database: {e}")
 
 # =========================================================
-# LOAD DATA
-# =========================================================
-try:
-    df = load_resumes()
-except Exception as e:
-    df = pd.DataFrame()
-    st.error(f"Database error: {e}")
-
-# =========================================================
-# METRICS
+# METRICS AND RESULTS DISPLAY
 # =========================================================
 if not df.empty:
     score_series = pd.to_numeric(df["match_score"], errors="coerce")
@@ -997,129 +988,21 @@ if not df.empty:
     top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
     avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
     shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
+    
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.markdown(f'<div class="metric-card"><div class="metric-label">Total Resumes</div><div class="metric-value">{total_resumes}</div></div>', unsafe_allow_html=True)
+    with m2:
+        st.markdown(f'<div class="metric-card"><div class="metric-label">Top Match</div><div class="metric-value">{top_match}%</div></div>', unsafe_allow_html=True)
+    with m3:
+        st.markdown(f'<div class="metric-card"><div class="metric-label">Average Score</div><div class="metric-value">{avg_score}%</div></div>', unsafe_allow_html=True)
+    with m4:
+        st.markdown(f'<div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value">{shortlisted}</div></div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.subheader("Latest Analysis Results")
+    for _, row in df.head(5).iterrows():
+        with st.expander(f"{row['name']} - {row['job_title'] or 'No Title'}"):
+            st.write(row['fit_summary'])
 else:
-    total_resumes = 0
-    top_match = 0
-    avg_score = 0
-    shortlisted = 0
-
-m1, m2, m3, m4 = st.columns(4)
-
-with m1:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Total Resumes</div>
-            <div class="metric-value">{total_resumes}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with m2:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Top Match</div>
-            <div class="metric-value">{top_match}%</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with m3:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Average Score</div>
-            <div class="metric-value">{avg_score}%</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with m4:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Shortlisted</div>
-            <div class="metric-value">{shortlisted}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-# =========================================================
-# CANDIDATE RESULTS
-# =========================================================
-st.markdown("## Candidate Results")
-
-if df.empty:
-    st.info("No resumes have been analyzed yet.")
-else:
-    df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce")
-    df = df.sort_values(by=["match_score_num", "created_at"], ascending=[False, False], na_position="last")
-
-    for _, row in df.iterrows():
-        candidate_name = safe_str(row.get("name")) or safe_str(row.get("file_name"))
-        score = safe_int(row.get("match_score"), None)
-        analysis_mode = safe_str(row.get("analysis_mode"))
-
-        st.markdown("---")
-
-        if score is not None:
-            top_left, top_right = st.columns([4, 1])
-
-            with top_left:
-                st.subheader(candidate_name)
-                st.caption(f"Mode: {analysis_mode}")
-
-            with top_right:
-                st.markdown(
-                    f'<div class="match-badge">{score}% Match</div>',
-                    unsafe_allow_html=True
-                )
-        else:
-            st.subheader(candidate_name)
-            st.caption(f"Mode: {analysis_mode}")
-
-        summary_title = "AI Summary" if score is not None else "CV Analysis Summary"
-        st.markdown(f"**{summary_title}**")
-        st.markdown(
-            f'<div class="summary-box">{safe_str(row.get("fit_summary"))}</div>',
-            unsafe_allow_html=True
-        )
-
-        with st.expander(f"View Resume Details - {candidate_name}"):
-            info_col1, info_col2 = st.columns(2)
-
-            with info_col1:
-                for label, value in [
-                    ("Name", row.get("name")),
-                    ("Email", row.get("email")),
-                    ("Phone", row.get("phone")),
-                    ("Location", row.get("location")),
-                    ("Address", row.get("address")),
-                    ("Date of Birth", row.get("date_of_birth")),
-                    ("Degree", row.get("degree")),
-                    ("University", row.get("university")),
-                    ("Graduation Year", row.get("graduation_year")),
-                ]:
-                    if safe_str(value):
-                        st.markdown(f'<div class="detail-label">{label}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="detail-value">{safe_str(value)}</div>', unsafe_allow_html=True)
-
-            with info_col2:
-                for label, value in [
-                    ("Job Title", row.get("job_title")),
-                    ("Years of Experience", row.get("years_of_experience")),
-                    ("Skills", row.get("skills")),
-                    ("Languages", row.get("languages")),
-                    ("Certifications", row.get("certifications")),
-                    ("LinkedIn", row.get("linkedin")),
-                    ("GitHub", row.get("github")),
-                    ("File Name", row.get("file_name")),
-                ]:
-                    if safe_str(value):
-                        st.markdown(f'<div class="detail-label">{label}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="detail-value">{safe_str(value)}</div>', unsafe_allow_html=True)
+    st.info("No resumes found in the database. Upload some to get started.")
