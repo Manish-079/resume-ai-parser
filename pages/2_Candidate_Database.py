@@ -102,10 +102,6 @@ def get_base64_of_bin_file(bin_file):
     return base64.b64encode(data).decode()
 
 
-def normalize_text_series(series):
-    return series.fillna("").astype(str).str.lower()
-
-
 def build_ai_candidate_context(source_df, max_candidates=60):
     """
     Build a compact, structured context for AI based only on
@@ -180,7 +176,6 @@ Instructions:
 # =========================================================
 # CSS
 # =========================================================
-
 st.markdown("""
 <style>
 :root {
@@ -318,20 +313,6 @@ BUTTONS
     color: var(--primary-dark) !important;
 }
 
-.primary-action button {
-    background: var(--primary) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 12px !important;
-    font-weight: 700 !important;
-    box-shadow: 0 6px 14px rgba(11, 122, 143, 0.14) !important;
-}
-
-.primary-action button:hover {
-    background: var(--primary-dark) !important;
-    color: white !important;
-}
-
 /* =========================
 CARDS / METRICS
 ========================= */
@@ -364,15 +345,6 @@ CARDS / METRICS
     font-size: 0.95rem;
     font-weight: 500;
     margin-bottom: 0.6rem;
-}
-
-.filter-card {
-    background: #FFFFFF;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 18px 18px 10px 18px;
-    margin-bottom: 18px;
-    box-shadow: 0 6px 14px rgba(11, 122, 143, 0.04);
 }
 
 .ai-card {
@@ -419,102 +391,6 @@ textarea:focus,
     opacity: 1 !important;
 }
 
-/* Text input */
-[data-testid="stTextInput"] input {
-    border-radius: 12px !important;
-    border: 1px solid var(--border) !important;
-    background: #FFFFFF !important;
-    color: var(--text-strong) !important;
-    -webkit-text-fill-color: var(--text-strong) !important;
-    font-weight: 500 !important;
-}
-
-[data-testid="stTextInput"] input::placeholder {
-    color: #7C949B !important;
-    -webkit-text-fill-color: #7C949B !important;
-    opacity: 1 !important;
-}
-
-[data-testid="stTextInput"] input:focus {
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 2px rgba(11, 122, 143, 0.12) !important;
-}
-
-/* =========================
-FILTER TEXT VISIBILITY FIX
-========================= */
-
-/* General widget labels */
-label[data-testid="stWidgetLabel"],
-label[data-testid="stWidgetLabel"] p,
-[data-testid="stWidgetLabel"] {
-    color: var(--text-strong) !important;
-    opacity: 1 !important;
-    font-weight: 700 !important;
-}
-
-/* Labels used above inputs/selects/sliders */
-.stTextInput label,
-.stSelectbox label,
-.stSlider label,
-.stCheckbox label {
-    color: var(--text-strong) !important;
-    opacity: 1 !important;
-    font-weight: 700 !important;
-}
-
-/* Search input text */
-[data-testid="stTextInput"] input {
-    color: var(--text-strong) !important;
-    -webkit-text-fill-color: var(--text-strong) !important;
-}
-
-/* Dropdown selected text */
-div[data-baseweb="select"] > div {
-    background: #FFFFFF !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
-    min-height: 50px !important;
-    box-shadow: none !important;
-}
-
-div[data-baseweb="select"] span,
-div[data-baseweb="select"] div,
-div[data-baseweb="select"] input,
-div[data-baseweb="select"] * {
-    color: var(--text-strong) !important;
-    -webkit-text-fill-color: var(--text-strong) !important;
-    opacity: 1 !important;
-    font-weight: 600 !important;
-}
-
-div[data-baseweb="select"] svg {
-    fill: var(--primary) !important;
-}
-
-/* Checkbox labels */
-[data-testid="stCheckbox"] label,
-[data-testid="stCheckbox"] p,
-[data-testid="stCheckbox"] span {
-    color: var(--text-strong) !important;
-    opacity: 1 !important;
-    font-weight: 600 !important;
-}
-
-/* Checkbox square border */
-[data-testid="stCheckbox"] div[role="checkbox"] {
-    border-color: var(--muted-dark) !important;
-}
-
-/* Slider label and value */
-[data-testid="stSlider"] label,
-[data-testid="stSlider"] p,
-[data-testid="stSlider"] span {
-    color: var(--text-strong) !important;
-    opacity: 1 !important;
-    font-weight: 600 !important;
-}
-
 /* =========================
 DETAILS / SUMMARY
 ========================= */
@@ -557,18 +433,6 @@ DETAILS / SUMMARY
 }
 
 /* =========================
-SLIDER
-========================= */
-[data-baseweb="slider"] [role="slider"] {
-    background: var(--primary) !important;
-    border-color: var(--primary) !important;
-}
-
-[data-baseweb="slider"] > div > div > div {
-    background: var(--primary-soft) !important;
-}
-
-/* =========================
 EXPANDER
 ========================= */
 [data-testid="stExpander"] {
@@ -605,7 +469,6 @@ h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-# ===============================
 # =========================================================
 # SIDEBAR
 # =========================================================
@@ -632,7 +495,7 @@ with st.sidebar:
         )
 
     st.markdown('<div class="sidebar-section-title">Recruitment Control</div>', unsafe_allow_html=True)
-    st.markdown('<div class="small-muted">Search, filter and ask AI about the existing candidate database.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="small-muted">Ask AI about the existing candidate database.</div>', unsafe_allow_html=True)
 
 # =========================================================
 # TOP RIGHT NAVIGATION
@@ -653,7 +516,7 @@ with nav_btn2:
 # HEADER
 # =========================================================
 st.markdown('<div class="main-title">Candidate Database</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Search, filter, review and analyze all CVs stored in the database</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Review and analyze all CVs stored in the database</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-line"></div>', unsafe_allow_html=True)
 
 # =========================================================
@@ -732,119 +595,11 @@ with m4:
     )
 
 # =========================================================
-# FILTERS
-# =========================================================
-st.markdown('<div class="section-heading">Candidate Search</div>', unsafe_allow_html=True)
-
-st.markdown('<div class="filter-card">', unsafe_allow_html=True)
-
-f1, f2, f3, f4 = st.columns([2.3, 1.2, 1.2, 0.9])
-
-with f1:
-    search_query = st.text_input(
-        "Search candidates",
-        placeholder="Search by name, skills, role, certifications or keyword"
-    )
-
-with f2:
-    min_score = st.slider("Minimum score", 0, 100, 0)
-
-with f3:
-    mode_filter = st.selectbox(
-        "Mode",
-        ["All", "Analyze CV", "Compare / Rate CVs"]
-    )
-
-with f4:
-    sort_option = st.selectbox(
-        "Sort by",
-        ["Newest", "Highest Score", "Name A-Z"]
-    )
-
-q1, q2, q3, q4, q5 = st.columns([1, 1, 1, 1, 2.2])
-
-with q1:
-    shortlisted_only = st.checkbox("Shortlisted", value=False)
-
-with q2:
-    rated_only = st.checkbox("Rated only", value=False)
-
-with q3:
-    analysis_only = st.checkbox("Analysis only", value=False)
-
-with q4:
-    reset_filters = st.button("Reset")
-
-if reset_filters:
-    st.rerun()
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# =========================================================
-# FILTER LOGIC
-# =========================================================
-if df.empty:
-    filtered_df = df
-else:
-    df = df.copy()
-
-    df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce")
-    df["search_blob"] = (
-        normalize_text_series(df["name"]) + " " +
-        normalize_text_series(df["skills"]) + " " +
-        normalize_text_series(df["job_title"]) + " " +
-        normalize_text_series(df["certifications"]) + " " +
-        normalize_text_series(df["fit_summary"]) + " " +
-        normalize_text_series(df["analysis_mode"]) + " " +
-        normalize_text_series(df["file_name"])
-    )
-
-    filtered_df = df.copy()
-
-    if min_score > 0:
-        filtered_df = filtered_df[filtered_df["match_score_num"].fillna(0) >= min_score]
-
-    if search_query:
-        q = search_query.lower().strip()
-        filtered_df = filtered_df[filtered_df["search_blob"].str.contains(q, na=False)]
-
-    if mode_filter != "All":
-        filtered_df = filtered_df[filtered_df["analysis_mode"].fillna("") == mode_filter]
-
-    if shortlisted_only:
-        filtered_df = filtered_df[filtered_df["match_score_num"].fillna(0) >= 75]
-
-    if rated_only:
-        filtered_df = filtered_df[filtered_df["match_score_num"].notna()]
-
-    if analysis_only:
-        filtered_df = filtered_df[filtered_df["analysis_mode"].fillna("") == "Analyze CV"]
-
-    if sort_option == "Highest Score":
-        filtered_df = filtered_df.sort_values(
-            by=["match_score_num", "created_at"],
-            ascending=[False, False],
-            na_position="last"
-        )
-    elif sort_option == "Name A-Z":
-        filtered_df = filtered_df.sort_values(
-            by=["name", "created_at"],
-            ascending=[True, False],
-            na_position="last"
-        )
-    else:
-        filtered_df = filtered_df.sort_values(
-            by=["created_at"],
-            ascending=[False],
-            na_position="last"
-        )
-
-# =========================================================
 # AI ASSISTANT
 # =========================================================
 st.markdown('<div class="section-heading">AI Candidate Assistant</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="small-muted">Ask questions about the candidates currently shown in the filtered results. The AI uses only existing database records, so it stays fast and avoids re-parsing CVs.</div>',
+    '<div class="small-muted">Ask questions about the candidates in the database. The AI uses only existing database records, so it stays fast and avoids re-parsing CVs.</div>',
     unsafe_allow_html=True
 )
 
@@ -873,8 +628,8 @@ if clear_ai:
 if ai_run:
     if not OPENAI_API_KEY.strip():
         st.error("OpenAI API key is missing.")
-    elif filtered_df.empty:
-        st.warning("There are no filtered candidates available for AI analysis.")
+    elif df.empty:
+        st.warning("There are no candidate records available for AI analysis.")
     elif not st.session_state.candidate_ai_question.strip():
         st.warning("Please enter a question for the AI assistant.")
     else:
@@ -882,7 +637,7 @@ if ai_run:
             with st.spinner("Analyzing existing candidate data..."):
                 answer = ask_ai_about_candidates(
                     st.session_state.candidate_ai_question.strip(),
-                    filtered_df
+                    df
                 )
                 st.session_state.candidate_ai_answer = answer
         except Exception as e:
@@ -899,15 +654,15 @@ st.markdown('</div>', unsafe_allow_html=True)
 # =========================================================
 # RESULTS
 # =========================================================
-st.markdown(f'<div class="section-heading">Candidate Results ({len(filtered_df)})</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-heading">Candidate Results ({len(df)})</div>', unsafe_allow_html=True)
 
-if filtered_df.empty:
+if df.empty:
     if db_error:
         st.info("No candidates are shown because the database is not available right now.")
     else:
-        st.info("No candidates match the selected filters.")
+        st.info("No candidates found in the database.")
 else:
-    for _, row in filtered_df.iterrows():
+    for _, row in df.iterrows():
         candidate_name = safe_str(row.get("name")) or safe_str(row.get("file_name"))
         score = safe_int(row.get("match_score"), None)
         analysis_mode = safe_str(row.get("analysis_mode"))
