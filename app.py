@@ -1,7 +1,7 @@
 import os
 import json
 import base64
-import streamlit as st  # <--- Make sure 'as' is here
+import streamlit as st
 import pandas as pd
 import psycopg
 from openai import OpenAI
@@ -67,9 +67,6 @@ if "job_description_input" not in st.session_state:
 if "analysis_prompt_input" not in st.session_state:
     st.session_state.analysis_prompt_input = ""
 
-# NEW: Toggle for resetting visibility without deleting DB
-if "show_current_results" not in st.session_state:
-    st.session_state.show_current_results = True
 
 # =========================================================
 # OPENAI (VEILIG VIA STREAMLIT SECRETS)
@@ -468,12 +465,6 @@ st.markdown("""
     --soft-gray: #EEF3F3;
 }
 
-/* Fix for visibility of labels in Database Page/Expander */
-label[data-testid="stWidgetLabel"] p {
-    color: #444444 !important; /* Dark Grey */
-    font-weight: 700 !important;
-}
-
 /* Hide default Streamlit multipage navigation */
 [data-testid="stSidebarNav"] {
     display: none !important;
@@ -672,74 +663,24 @@ textarea,
     opacity: 1 !important;
 }
 
-/* =========================
-FILE UPLOADER
-========================= */
 [data-testid="stFileUploader"] {
-    border: 3px dashed #3E6F79 !important;
-    border-radius: 28px !important;
-    background: rgba(255, 255, 255, 0.58) !important;
+    background: #FFFFFF !important;
+    border: 2px dashed var(--primary) !important;
+    border-radius: 24px !important;
     padding: 22px !important;
 }
 
 [data-testid="stFileUploader"] section {
     background: transparent !important;
     border: none !important;
-    padding: 0 !important;
-}
-
-[data-testid="stFileUploader"] section > div {
-    background: transparent !important;
-    border: none !important;
-}
-
-[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {
-    background: transparent !important;
-    border: none !important;
-    min-height: 170px !important;
-    padding: 14px 18px !important;
-}
-
-[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] > div {
-    background: transparent !important;
-    border: none !important;
-}
-
-[data-testid="stFileUploader"] label,
-[data-testid="stFileUploader"] span,
-[data-testid="stFileUploader"] small,
-[data-testid="stFileUploader"] p {
-    color: #D9DDE2 !important;
-    opacity: 1 !important;
-}
-
-[data-testid="stFileUploader"] small {
-    color: #E6E9ED !important;
-    font-size: 1rem !important;
-}
-
-[data-testid="stFileUploader"] svg {
-    fill: #A8AFC0 !important;
-    color: #A8AFC0 !important;
-    width: 54px !important;
-    height: 54px !important;
 }
 
 [data-testid="stFileUploader"] button {
-    background: #3E6F79 !important;
+    background: var(--primary) !important;
     color: white !important;
     border: none !important;
-    border-radius: 18px !important;
-    font-weight: 800 !important;
-    font-size: 1rem !important;
-    padding: 0.9rem 1.8rem !important;
-    min-height: 56px !important;
-    box-shadow: none !important;
-}
-
-[data-testid="stFileUploader"] button:hover {
-    background: #325C64 !important;
-    color: white !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
 }
 
 .summary-box {
@@ -872,12 +813,7 @@ with st.sidebar:
     )
 
     analyze_clicked = st.button("Run Analysis")
-    # UPDATED BUTTON: "Clear View" resets state without deleting database
-    if st.button("Clear View"):
-        st.session_state.job_description_input = ""
-        st.session_state.analysis_prompt_input = ""
-        st.session_state.show_current_results = False
-        st.rerun()
+    clear_clicked = st.button("Clear Database")
 
 # =========================================================
 # TOP RIGHT NAVIGATION
@@ -983,7 +919,6 @@ with right_col:
 # ACTIONS
 # =========================================================
 if analyze_clicked:
-    st.session_state.show_current_results = True
     if not OPENAI_API_KEY.strip():
         st.error("OpenAI API key is missing.")
     elif not uploaded_files:
@@ -1040,19 +975,45 @@ if analyze_clicked:
         except Exception as e:
             st.error(f"Error during analysis: {e}")
 
+if clear_clicked:
+    try:
+        clear_database()
+        st.success("Database cleared successfully.")
+        st.rerun()
+    except Exception as e:
+        st.error(f"Error clearing database: {e}")
+
 # =========================================================
 # LOAD DATA (CRITICAL FIX FOR NameError)
 # =========================================================
 try:
     df = load_resumes()
 except Exception as e:
+    # This creates an empty table if the database fails, preventing the crash
     df = pd.DataFrame()
     st.error(f"Database error: {e}")
 
 # =========================================================
-# METRICS AND RESULTS DISPLAY (HIDDEN IF VIEW CLEARED)
+# METRICS (Line 982 starts here)
 # =========================================================
-if st.session_state.show_current_results and not df.empty:
+if not df.empty:
+    score_series = pd.to_numeric(df["match_score"], errors="coerce")
+    rated_df = df[score_series.notna()].copy()
+    rated_df["match_score"] = pd.to_numeric(rated_df["match_score"], errors="coerce")
+
+    total_resumes = len(df)
+    top_match = int(rated_df["match_score"].max()) if not rated_df.empty else 0
+    avg_score = int(rated_df["match_score"].mean()) if not rated_df.empty else 0
+    shortlisted = len(rated_df[rated_df["match_score"] >= 75]) if not rated_df.empty else 0
+else:
+    total_resumes = 0
+    top_match = 0
+    avg_score = 0
+    shortlisted = 0
+# =========================================================
+# METRICS AND RESULTS DISPLAY
+# =========================================================
+if not df.empty:
     score_series = pd.to_numeric(df["match_score"], errors="coerce")
     rated_df = df[score_series.notna()].copy()
     rated_df["match_score"] = pd.to_numeric(rated_df["match_score"], errors="coerce")
@@ -1079,3 +1040,11 @@ if st.session_state.show_current_results and not df.empty:
         st.markdown(
             f'<div class="metric-card"><div class="metric-label">Shortlisted</div><div class="metric-value">{shortlisted}</div></div>',
             unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.subheader("Latest Analysis Results")
+    for _, row in df.head(5).iterrows():
+        with st.expander(f"{row['name']} - {row['job_title'] or 'No Title'}"):
+            st.write(row['fit_summary'])
+else:
+    st.info("No resumes found in the database. Upload some to get started.")
