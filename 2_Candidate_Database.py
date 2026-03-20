@@ -1,8 +1,10 @@
 import os
+import json
 import base64
 import streamlit as st
 import pandas as pd
 import psycopg
+from openai import OpenAI
 
 # =========================================================
 # PAGE CONFIG
@@ -12,6 +14,28 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# =========================================================
+# OPENAI
+# =========================================================
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    try:
+        OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+    except Exception:
+        OPENAI_API_KEY = ""
+
+client = OpenAI(api_key=OPENAI_API_KEY.strip()) if OPENAI_API_KEY.strip() else None
+
+# =========================================================
+# SESSION STATE
+# =========================================================
+if "candidate_ai_question" not in st.session_state:
+    st.session_state.candidate_ai_question = ""
+
+if "candidate_ai_answer" not in st.session_state:
+    st.session_state.candidate_ai_answer = ""
 
 # =========================================================
 # DATABASE
@@ -48,6 +72,9 @@ def load_resumes():
     return df
 
 
+# =========================================================
+# HELPERS
+# =========================================================
 def safe_str(value):
     if value is None:
         return ""
@@ -75,9 +102,85 @@ def get_base64_of_bin_file(bin_file):
     return base64.b64encode(data).decode()
 
 
+def normalize_text_series(series):
+    return series.fillna("").astype(str).str.lower()
+
+
+def build_ai_candidate_context(source_df, max_candidates=60):
+    """
+    Build a compact, structured context for AI based only on
+    existing database records. Keeps it fast and cheaper.
+    """
+    if source_df.empty:
+        return []
+
+    working_df = source_df.copy().head(max_candidates)
+
+    candidate_records = []
+    for _, row in working_df.iterrows():
+        candidate_records.append({
+            "name": safe_str(row.get("name")) or safe_str(row.get("file_name")),
+            "analysis_mode": safe_str(row.get("analysis_mode")),
+            "job_title": safe_str(row.get("job_title")),
+            "years_of_experience": safe_str(row.get("years_of_experience")),
+            "skills": safe_str(row.get("skills")),
+            "languages": safe_str(row.get("languages")),
+            "degree": safe_str(row.get("degree")),
+            "university": safe_str(row.get("university")),
+            "location": safe_str(row.get("location")),
+            "certifications": safe_str(row.get("certifications")),
+            "match_score": safe_int(row.get("match_score"), None),
+            "fit_summary": safe_str(row.get("fit_summary")),
+            "file_name": safe_str(row.get("file_name")),
+            "created_at": safe_str(row.get("created_at"))
+        })
+
+    return candidate_records
+
+
+def ask_ai_about_candidates(question, source_df):
+    if not client:
+        raise ValueError("OpenAI API key is missing.")
+
+    candidate_context = build_ai_candidate_context(source_df, max_candidates=60)
+
+    if not candidate_context:
+        raise ValueError("There are no candidate records available for AI analysis.")
+
+    prompt = f"""
+You are a professional recruitment assistant for IT Solutions Worldwide.
+
+You must answer ONLY using the candidate database data below.
+Do not invent missing facts.
+Do not mention information that is not in the database.
+If the answer cannot be determined from the data, say that clearly.
+
+Candidate database records:
+{json.dumps(candidate_context, ensure_ascii=False, indent=2)}
+
+User question:
+{question}
+
+Instructions:
+- Give a concise professional answer
+- Prefer bullet points when comparing candidates
+- If relevant, mention candidate names and why they fit
+- If relevant, rank candidates based only on the stored data
+- Keep the tone corporate and clear
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    return response.choices[0].message.content.strip()
+
+
 # =========================================================
 # CSS
 # =========================================================
+
 st.markdown("""
 <style>
 :root {
@@ -88,7 +191,11 @@ st.markdown("""
     --card: #FFFFFF;
     --border: #CFE3E8;
     --text: #124B57;
+    --text-strong: #163C45;
     --muted: #6D8E96;
+    --muted-dark: #4D6C74;
+    --success-soft: #EEF9F2;
+    --info-soft: #F5FAFB;
 }
 
 /* Hide default Streamlit multipage navigation */
@@ -156,7 +263,7 @@ TITLES
 
 .sub-title {
     font-size: 1.15rem;
-    color: var(--muted);
+    color: var(--muted-dark);
     margin-bottom: 1rem;
     font-weight: 500;
 }
@@ -167,6 +274,14 @@ TITLES
     background: var(--primary);
     border-radius: 999px;
     margin-bottom: 1.8rem;
+}
+
+.section-heading {
+    font-size: 2.1rem;
+    font-weight: 800;
+    color: var(--primary-dark);
+    margin-top: 1rem;
+    margin-bottom: 1rem;
 }
 
 /* =========================
@@ -189,7 +304,7 @@ BUTTONS
 .stButton > button {
     width: 100%;
     background: transparent !important;
-    color: var(--primary) !important;
+    color: var(--primary-dark) !important;
     border: none !important;
     font-weight: 700;
     font-size: 0.95rem;
@@ -203,18 +318,16 @@ BUTTONS
     color: var(--primary-dark) !important;
 }
 
-/* Button style for regular action buttons inside uploader/cards */
-[data-testid="stFileUploader"] button,
-[data-testid="stDownloadButton"] button {
+.primary-action button {
     background: var(--primary) !important;
     color: white !important;
     border: none !important;
     border-radius: 12px !important;
     font-weight: 700 !important;
+    box-shadow: 0 6px 14px rgba(11, 122, 143, 0.14) !important;
 }
 
-[data-testid="stFileUploader"] button:hover,
-[data-testid="stDownloadButton"] button:hover {
+.primary-action button:hover {
     background: var(--primary-dark) !important;
     color: white !important;
 }
@@ -232,7 +345,7 @@ CARDS / METRICS
 }
 
 .metric-label {
-    color: var(--muted);
+    color: var(--muted-dark);
     font-size: 0.9rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -246,20 +359,39 @@ CARDS / METRICS
     line-height: 1;
 }
 
-.mode-box {
-    background: #FFFFFF;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 12px 16px;
-    margin-bottom: 14px;
-    color: var(--text);
-}
-
 .small-muted {
-    color: var(--muted);
+    color: var(--muted-dark);
     font-size: 0.95rem;
     font-weight: 500;
     margin-bottom: 0.6rem;
+}
+
+.filter-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px 18px 10px 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 6px 14px rgba(11, 122, 143, 0.04);
+}
+
+.ai-card {
+    background: linear-gradient(180deg, #FFFFFF 0%, #F8FCFC 100%);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 6px 14px rgba(11, 122, 143, 0.05);
+}
+
+.ai-answer-box {
+    background: var(--info-soft);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    color: var(--text-strong);
+    line-height: 1.65;
+    margin-top: 10px;
 }
 
 /* =========================
@@ -270,7 +402,7 @@ textarea,
     background: #FFFFFF !important;
     border: 1px solid var(--border) !important;
     border-radius: 16px !important;
-    color: var(--text) !important;
+    color: var(--text-strong) !important;
     padding: 14px !important;
     caret-color: var(--primary) !important;
 }
@@ -283,15 +415,24 @@ textarea:focus,
 }
 
 .stTextArea textarea::placeholder {
-    color: var(--muted) !important;
+    color: #7C949B !important;
     opacity: 1 !important;
 }
 
+/* Text input */
 [data-testid="stTextInput"] input {
     border-radius: 12px !important;
     border: 1px solid var(--border) !important;
     background: #FFFFFF !important;
-    color: var(--text) !important;
+    color: var(--text-strong) !important;
+    -webkit-text-fill-color: var(--text-strong) !important;
+    font-weight: 500 !important;
+}
+
+[data-testid="stTextInput"] input::placeholder {
+    color: #7C949B !important;
+    -webkit-text-fill-color: #7C949B !important;
+    opacity: 1 !important;
 }
 
 [data-testid="stTextInput"] input:focus {
@@ -300,8 +441,35 @@ textarea:focus,
 }
 
 /* =========================
-SELECT BOX
+FILTER TEXT VISIBILITY FIX
 ========================= */
+
+/* General widget labels */
+label[data-testid="stWidgetLabel"],
+label[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] {
+    color: var(--text-strong) !important;
+    opacity: 1 !important;
+    font-weight: 700 !important;
+}
+
+/* Labels used above inputs/selects/sliders */
+.stTextInput label,
+.stSelectbox label,
+.stSlider label,
+.stCheckbox label {
+    color: var(--text-strong) !important;
+    opacity: 1 !important;
+    font-weight: 700 !important;
+}
+
+/* Search input text */
+[data-testid="stTextInput"] input {
+    color: var(--text-strong) !important;
+    -webkit-text-fill-color: var(--text-strong) !important;
+}
+
+/* Dropdown selected text */
 div[data-baseweb="select"] > div {
     background: #FFFFFF !important;
     border: 1px solid var(--border) !important;
@@ -310,28 +478,94 @@ div[data-baseweb="select"] > div {
     box-shadow: none !important;
 }
 
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] div,
+div[data-baseweb="select"] input,
 div[data-baseweb="select"] * {
-    color: var(--text) !important;
+    color: var(--text-strong) !important;
+    -webkit-text-fill-color: var(--text-strong) !important;
     opacity: 1 !important;
+    font-weight: 600 !important;
 }
 
 div[data-baseweb="select"] svg {
     fill: var(--primary) !important;
 }
 
-/* =========================
-FILE UPLOADER
-========================= */
-[data-testid="stFileUploader"] {
-    border: 2px dashed var(--primary) !important;
-    border-radius: 20px !important;
-    background: #FFFFFF !important;
-    padding: 22px !important;
+/* Checkbox labels */
+[data-testid="stCheckbox"] label,
+[data-testid="stCheckbox"] p,
+[data-testid="stCheckbox"] span {
+    color: var(--text-strong) !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
 }
 
-[data-testid="stFileUploader"] section {
-    background: transparent !important;
-    border: none !important;
+/* Checkbox square border */
+[data-testid="stCheckbox"] div[role="checkbox"] {
+    border-color: var(--muted-dark) !important;
+}
+
+/* Slider label and value */
+[data-testid="stSlider"] label,
+[data-testid="stSlider"] p,
+[data-testid="stSlider"] span {
+    color: var(--text-strong) !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
+}
+
+/* =========================
+DETAILS / SUMMARY
+========================= */
+.match-badge {
+    background: var(--primary-soft);
+    border: 2px solid var(--primary);
+    color: var(--primary-dark);
+    font-weight: 800;
+    padding: 10px 16px;
+    border-radius: 999px;
+    text-align: center;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.summary-box {
+    background: #F7FBFC;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    color: var(--text-strong);
+    line-height: 1.6;
+}
+
+.detail-label {
+    color: var(--muted-dark);
+    font-size: 0.85rem;
+    font-weight: 800;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.detail-value {
+    color: var(--text-strong);
+    font-size: 1rem;
+    margin-bottom: 12px;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+/* =========================
+SLIDER
+========================= */
+[data-baseweb="slider"] [role="slider"] {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+[data-baseweb="slider"] > div > div > div {
+    background: var(--primary-soft) !important;
 }
 
 /* =========================
@@ -352,59 +586,6 @@ EXPANDER
 }
 
 /* =========================
-BADGES / SUMMARY
-========================= */
-.match-badge {
-    background: var(--primary-soft);
-    border: 2px solid var(--primary);
-    color: var(--primary-dark);
-    font-weight: 800;
-    padding: 10px 16px;
-    border-radius: 999px;
-    text-align: center;
-    display: inline-block;
-    white-space: nowrap;
-}
-
-.summary-box {
-    background: #F7FBFC;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 16px;
-    color: var(--text);
-    line-height: 1.6;
-}
-
-.detail-label {
-    color: var(--muted);
-    font-size: 0.85rem;
-    font-weight: 800;
-    margin-bottom: 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-}
-
-.detail-value {
-    color: var(--text);
-    font-size: 1rem;
-    margin-bottom: 12px;
-    word-break: break-word;
-    line-height: 1.45;
-}
-
-/* =========================
-SLIDER
-========================= */
-[data-baseweb="slider"] [role="slider"] {
-    background: var(--primary) !important;
-    border-color: var(--primary) !important;
-}
-
-[data-baseweb="slider"] > div > div > div {
-    background: var(--primary-soft) !important;
-}
-
-/* =========================
 MISC
 ========================= */
 hr {
@@ -421,34 +602,10 @@ h2, h3 {
     border-radius: 16px !important;
     border: 1px solid var(--border) !important;
 }
-
-/* Keep text-link style for your Use Default / Clear row */
-div[data-testid="stHorizontalBlock"] div.stButton > button {
-    background: transparent !important;
-    border: none !important;
-    color: #4c6374 !important;
-    text-decoration: none !important;
-    box-shadow: none !important;
-    padding: 0px !important;
-    width: auto !important;
-    min-height: 0px !important;
-    font-size: 0.95rem !important;
-    font-weight: 500 !important;
-}
-
-div[data-testid="stHorizontalBlock"] div.stButton > button:hover {
-    color: var(--primary) !important;
-    text-decoration: underline !important;
-    background: transparent !important;
-}
-
-.divider-pipe {
-    color: var(--border);
-    margin: 0 2px;
-    font-weight: 300;
-}
 </style>
 """, unsafe_allow_html=True)
+
+# ===============================
 # =========================================================
 # SIDEBAR
 # =========================================================
@@ -475,7 +632,7 @@ with st.sidebar:
         )
 
     st.markdown('<div class="sidebar-section-title">Recruitment Control</div>', unsafe_allow_html=True)
-    st.markdown('<div class="small-muted">Candidate database overview and filtering.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="small-muted">Search, filter and ask AI about the existing candidate database.</div>', unsafe_allow_html=True)
 
 # =========================================================
 # TOP RIGHT NAVIGATION
@@ -496,16 +653,18 @@ with nav_btn2:
 # HEADER
 # =========================================================
 st.markdown('<div class="main-title">Candidate Database</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Search, filter and review all CVs stored in the database</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Search, filter, review and analyze all CVs stored in the database</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-line"></div>', unsafe_allow_html=True)
 
 # =========================================================
 # LOAD DATA
 # =========================================================
+db_error = None
 try:
     df = load_resumes()
 except Exception as e:
     df = pd.DataFrame()
+    db_error = str(e)
     st.error(f"Database error: {e}")
 
 # =========================================================
@@ -575,18 +734,51 @@ with m4:
 # =========================================================
 # FILTERS
 # =========================================================
-st.markdown("## Database Explorer")
-with st.expander("Filter and Search Candidates", expanded=True):
-    f1, f2 = st.columns([2, 1])
+st.markdown('<div class="section-heading">Candidate Search</div>', unsafe_allow_html=True)
 
-    with f1:
-        search_query = st.text_input(
-            "Search by Name or Skills",
-            placeholder="For example: Python, Java, Ruben"
-        )
+st.markdown('<div class="filter-card">', unsafe_allow_html=True)
 
-    with f2:
-        min_score = st.slider("Minimum Match Score", 0, 100, 0)
+f1, f2, f3, f4 = st.columns([2.3, 1.2, 1.2, 0.9])
+
+with f1:
+    search_query = st.text_input(
+        "Search candidates",
+        placeholder="Search by name, skills, role, certifications or keyword"
+    )
+
+with f2:
+    min_score = st.slider("Minimum score", 0, 100, 0)
+
+with f3:
+    mode_filter = st.selectbox(
+        "Mode",
+        ["All", "Analyze CV", "Compare / Rate CVs"]
+    )
+
+with f4:
+    sort_option = st.selectbox(
+        "Sort by",
+        ["Newest", "Highest Score", "Name A-Z"]
+    )
+
+q1, q2, q3, q4, q5 = st.columns([1, 1, 1, 1, 2.2])
+
+with q1:
+    shortlisted_only = st.checkbox("Shortlisted", value=False)
+
+with q2:
+    rated_only = st.checkbox("Rated only", value=False)
+
+with q3:
+    analysis_only = st.checkbox("Analysis only", value=False)
+
+with q4:
+    reset_filters = st.button("Reset")
+
+if reset_filters:
+    st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================================================
 # FILTER LOGIC
@@ -594,29 +786,126 @@ with st.expander("Filter and Search Candidates", expanded=True):
 if df.empty:
     filtered_df = df
 else:
-    df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce").fillna(0)
-    filtered_df = df[df["match_score_num"] >= min_score]
+    df = df.copy()
+
+    df["match_score_num"] = pd.to_numeric(df["match_score"], errors="coerce")
+    df["search_blob"] = (
+        normalize_text_series(df["name"]) + " " +
+        normalize_text_series(df["skills"]) + " " +
+        normalize_text_series(df["job_title"]) + " " +
+        normalize_text_series(df["certifications"]) + " " +
+        normalize_text_series(df["fit_summary"]) + " " +
+        normalize_text_series(df["analysis_mode"]) + " " +
+        normalize_text_series(df["file_name"])
+    )
+
+    filtered_df = df.copy()
+
+    if min_score > 0:
+        filtered_df = filtered_df[filtered_df["match_score_num"].fillna(0) >= min_score]
 
     if search_query:
-        q = search_query.lower()
-        filtered_df = filtered_df[
-            filtered_df["name"].str.lower().str.contains(q, na=False) |
-            filtered_df["skills"].str.lower().str.contains(q, na=False)
-        ]
+        q = search_query.lower().strip()
+        filtered_df = filtered_df[filtered_df["search_blob"].str.contains(q, na=False)]
 
-    filtered_df = filtered_df.sort_values(
-        by=["match_score_num", "created_at"],
-        ascending=[False, False],
-        na_position="last"
+    if mode_filter != "All":
+        filtered_df = filtered_df[filtered_df["analysis_mode"].fillna("") == mode_filter]
+
+    if shortlisted_only:
+        filtered_df = filtered_df[filtered_df["match_score_num"].fillna(0) >= 75]
+
+    if rated_only:
+        filtered_df = filtered_df[filtered_df["match_score_num"].notna()]
+
+    if analysis_only:
+        filtered_df = filtered_df[filtered_df["analysis_mode"].fillna("") == "Analyze CV"]
+
+    if sort_option == "Highest Score":
+        filtered_df = filtered_df.sort_values(
+            by=["match_score_num", "created_at"],
+            ascending=[False, False],
+            na_position="last"
+        )
+    elif sort_option == "Name A-Z":
+        filtered_df = filtered_df.sort_values(
+            by=["name", "created_at"],
+            ascending=[True, False],
+            na_position="last"
+        )
+    else:
+        filtered_df = filtered_df.sort_values(
+            by=["created_at"],
+            ascending=[False],
+            na_position="last"
+        )
+
+# =========================================================
+# AI ASSISTANT
+# =========================================================
+st.markdown('<div class="section-heading">AI Candidate Assistant</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="small-muted">Ask questions about the candidates currently shown in the filtered results. The AI uses only existing database records, so it stays fast and avoids re-parsing CVs.</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown('<div class="ai-card">', unsafe_allow_html=True)
+
+ai_left, ai_right = st.columns([5, 1])
+
+with ai_left:
+    st.text_area(
+        "Ask AI about candidates",
+        key="candidate_ai_question",
+        height=120,
+        placeholder="Examples: Give me the top 3 Python candidates. / Who looks strongest for a data analyst role? / Summarize the shortlisted candidates."
     )
+
+with ai_right:
+    st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
+    ai_run = st.button("Ask AI", use_container_width=True)
+    clear_ai = st.button("Clear AI", use_container_width=True)
+
+if clear_ai:
+    st.session_state.candidate_ai_question = ""
+    st.session_state.candidate_ai_answer = ""
+    st.rerun()
+
+if ai_run:
+    if not OPENAI_API_KEY.strip():
+        st.error("OpenAI API key is missing.")
+    elif filtered_df.empty:
+        st.warning("There are no filtered candidates available for AI analysis.")
+    elif not st.session_state.candidate_ai_question.strip():
+        st.warning("Please enter a question for the AI assistant.")
+    else:
+        try:
+            with st.spinner("Analyzing existing candidate data..."):
+                answer = ask_ai_about_candidates(
+                    st.session_state.candidate_ai_question.strip(),
+                    filtered_df
+                )
+                st.session_state.candidate_ai_answer = answer
+        except Exception as e:
+            st.error(f"AI error: {e}")
+
+if st.session_state.candidate_ai_answer:
+    st.markdown(
+        f'<div class="ai-answer-box">{st.session_state.candidate_ai_answer}</div>',
+        unsafe_allow_html=True
+    )
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================================================
 # RESULTS
 # =========================================================
-st.markdown(f"## Candidate Results ({len(filtered_df)})")
+st.markdown(f'<div class="section-heading">Candidate Results ({len(filtered_df)})</div>', unsafe_allow_html=True)
 
 if filtered_df.empty:
-    st.info("No candidates match the selected filters.")
+    if db_error:
+        st.info("No candidates are shown because the database is not available right now.")
+    else:
+        st.info("No candidates match the selected filters.")
 else:
     for _, row in filtered_df.iterrows():
         candidate_name = safe_str(row.get("name")) or safe_str(row.get("file_name"))

@@ -672,18 +672,74 @@ textarea,
     opacity: 1 !important;
 }
 
-/* FIX: maak upload tekst zichtbaar (donkergrijs) */
-[data-testid="stFileUploader"] * {
-    color: #444444 !important; /* donkergrijs */
+/* =========================
+FILE UPLOADER
+========================= */
+[data-testid="stFileUploader"] {
+    border: 3px dashed #3E6F79 !important;
+    border-radius: 28px !important;
+    background: rgba(255, 255, 255, 0.58) !important;
+    padding: 22px !important;
+}
+
+[data-testid="stFileUploader"] section {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+[data-testid="stFileUploader"] section > div {
+    background: transparent !important;
+    border: none !important;
+}
+
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {
+    background: transparent !important;
+    border: none !important;
+    min-height: 170px !important;
+    padding: 14px 18px !important;
+}
+
+[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] > div {
+    background: transparent !important;
+    border: none !important;
+}
+
+[data-testid="stFileUploader"] label,
+[data-testid="stFileUploader"] span,
+[data-testid="stFileUploader"] small,
+[data-testid="stFileUploader"] p {
+    color: #D9DDE2 !important;
     opacity: 1 !important;
 }
 
-/* Specifiek voor de drag & drop tekst */
-[data-testid="stFileUploader"] label,
-[data-testid="stFileUploader"] span,
 [data-testid="stFileUploader"] small {
-    color: #444444 !important;
+    color: #E6E9ED !important;
+    font-size: 1rem !important;
+}
 
+[data-testid="stFileUploader"] svg {
+    fill: #A8AFC0 !important;
+    color: #A8AFC0 !important;
+    width: 54px !important;
+    height: 54px !important;
+}
+
+[data-testid="stFileUploader"] button {
+    background: #3E6F79 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 18px !important;
+    font-weight: 800 !important;
+    font-size: 1rem !important;
+    padding: 0.9rem 1.8rem !important;
+    min-height: 56px !important;
+    box-shadow: none !important;
+}
+
+[data-testid="stFileUploader"] button:hover {
+    background: #325C64 !important;
+    color: white !important;
 }
 
 .summary-box {
