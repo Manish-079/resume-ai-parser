@@ -62,6 +62,11 @@ def get_image_path():
 # =========================================================
 st.markdown("""
 <style>
+/* HIDE SIDEBAR AND TOGGLE BUTTON COMPLETELY ON THIS PAGE */
+[data-testid="stSidebar"], [data-testid="stSidebarNav"], button[kind="headerNoSpacing"] {
+    display: none !important;
+}
+
 :root {
     --primary: #0f6f83;
     --primary-dark: #243d63;
