@@ -27,12 +27,19 @@ st.markdown("""
 # =========================================================
 # OPENAI
 # =========================================================
+# Verbeterde initialisatie om NameErrors te voorkomen
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 if not OPENAI_API_KEY:
     OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
 
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+# Zorg dat de client alleen wordt aangemaakt als er een key is, 
+# anders vangen we dit later op in de functies.
+if OPENAI_API_KEY:
+    client = OpenAI(api_key=OPENAI_API_KEY)
+else:
+    client = None
+
 # =========================================================
 # SESSION STATE
 # =========================================================
@@ -178,7 +185,7 @@ def extract_json_from_text(text):
 
 def ask_ai_about_candidates(question, source_df):
     if not client:
-        raise ValueError("OpenAI API key is missing.")
+        raise ValueError("OpenAI API key is missing of client is niet geïnitialiseerd.")
 
     candidate_context = build_ai_candidate_context(source_df, max_candidates=60)
 
@@ -1424,7 +1431,7 @@ st.markdown(
 )
 
 if ai_run:
-    if not OPENAI_API_KEY.strip():
+    if not OPENAI_API_KEY or not str(OPENAI_API_KEY).strip():
         st.error("OpenAI API key is missing.")
     elif df.empty:
         st.warning("There are no candidate records available for AI analysis.")
