@@ -27,13 +27,12 @@ st.markdown("""
 # =========================================================
 # OPENAI
 # =========================================================
-api_key = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not api_key:
-    api_key = st.secrets.get("OPENAI_API_KEY", "")
+if not OPENAI_API_KEY:
+    OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
 
-client = OpenAI(api_key=api_key) if api_key else None
-
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 # =========================================================
 # SESSION STATE
 # =========================================================
