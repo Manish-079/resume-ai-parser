@@ -264,7 +264,7 @@ with col1:
     st.write("")
     if st.button("Open Analyze CV", key="go_analyze", use_container_width=True):
         st.session_state["selected_mode"] = "Analyze CV"
-        st.switch_page("pages/1_CV_Parser.py")
+        st.switch_page("pages/app.py")
 
 with col2:
     st.markdown(
