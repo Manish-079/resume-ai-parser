@@ -1296,13 +1296,16 @@ with st.sidebar:
 # =========================================================
 # TOP RIGHT NAVIGATION
 # =========================================================
-nav_spacer, nav_right = st.columns([6, 4])
+nav_spacer, nav_right = st.columns([5, 5])
 
 with nav_right:
-    inner_left, inner_right = st.columns(2)
+    inner_left, inner_middle, inner_right = st.columns(3)
     with inner_left:
         if st.button("Home", use_container_width=True):
             st.switch_page("home.py")
+    with inner_middle:
+        if st.button("CV Parser", use_container_width=True):
+            st.switch_page("pages/app.py")
     with inner_right:
         st.markdown('<div class="top-nav-active">Candidate Database</div>', unsafe_allow_html=True)
 
