@@ -89,21 +89,15 @@ client = OpenAI(api_key=OPENAI_API_KEY.strip()) if OPENAI_API_KEY.strip() else N
 # =========================================================
 # DATABASE
 # =========================================================
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_PORT = os.getenv("DB_PORT", "5432")
-
-
+# =========================================================
+# DATABASE
+# =========================================================
 def connect_db():
-    return psycopg.connect(
-        host=DB_HOST,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        port=DB_PORT
-    )
+    try:
+        return psycopg.connect(st.secrets["DATABASE_URL"])
+    except Exception as e:
+        st.error(f"Database connection failed: {e}")
+        raise
 
 
 def init_db():
