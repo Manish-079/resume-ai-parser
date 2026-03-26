@@ -76,15 +76,12 @@ if "analysis_prompt_input" not in st.session_state:
 # =========================================================
 # OPENAI
 # =========================================================
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+api_key = os.getenv("OPENAI_API_KEY")
 
-if not OPENAI_API_KEY:
-    try:
-        OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-    except Exception:
-        OPENAI_API_KEY = ""
+if not api_key:
+    api_key = st.secrets.get("OPENAI_API_KEY", "")
 
-client = OpenAI(api_key=OPENAI_API_KEY.strip()) if OPENAI_API_KEY.strip() else None
+client = OpenAI(api_key=api_key) if api_key else None
 
 # =========================================================
 # DATABASE
