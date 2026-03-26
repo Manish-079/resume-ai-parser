@@ -274,7 +274,7 @@ with col2:
     st.write("")
     if st.button("Open Compare & Rate CVs", key="go_compare", use_container_width=True):
         st.session_state["selected_mode"] = "Compare / Rate CVs"
-        st.switch_page("pages/1_CV_Parser.py")
+        st.switch_page("pages/app.py")
 
 with col3:
     st.markdown(
