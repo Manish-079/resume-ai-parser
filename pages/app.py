@@ -76,22 +76,27 @@ if "analysis_prompt_input" not in st.session_state:
 # =========================================================
 # OPENAI
 # =========================================================
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-if not OPENAI_API_KEY:
-    OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
+# Verkrijg de key en zorg dat de variabele altijd bestaat (voorkomt NameError)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY", "")
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # =========================================================
 # DATABASE
 # =========================================================
-# =========================================================
-# DATABASE
-# =========================================================
 def connect_db():
     try:
-        return psycopg.connect(st.secrets["DATABASE_URL"])
+        database_url = os.getenv("DATABASE_URL")
+
+        if not database_url:
+            database_url = st.secrets.get("DATABASE_URL", "")
+
+        if not database_url:
+            raise ValueError("DATABASE_URL not found in environment variables or secrets.toml")
+
+        return psycopg.connect(database_url)
+
     except Exception as e:
         st.error(f"Database connection failed: {e}")
         raise
@@ -158,7 +163,6 @@ def init_db():
             for query in alter_queries:
                 cursor.execute(query)
         conn.commit()
-
 
 # =========================================================
 # HELPERS
@@ -936,7 +940,8 @@ st.markdown('<div class="main-title">IT Solutions Worldwide</div>', unsafe_allow
 st.markdown('<div class="sub-title">Professional Candidate Intelligence Dashboard</div>', unsafe_allow_html=True)
 st.markdown('<div class="section-line"></div>', unsafe_allow_html=True)
 
-if not OPENAI_API_KEY.strip():
+# Veiligheidscheck op de API key
+if not OPENAI_API_KEY or not str(OPENAI_API_KEY).strip():
     st.warning("Paste your OpenAI API key in the OPENAI_API_KEY variable before analyzing resumes.")
 
 st.markdown(
@@ -973,7 +978,7 @@ if analyze_clicked:
     # Get files from dynamic key
     uploaded_files = st.session_state.get(uploader_key)
 
-    if not OPENAI_API_KEY.strip():
+    if not OPENAI_API_KEY or not str(OPENAI_API_KEY).strip():
         st.error("OpenAI API key is missing.")
     elif not uploaded_files:
         if selected_mode == "Analyze CV":
