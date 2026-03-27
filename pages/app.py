@@ -504,8 +504,8 @@ def load_resumes():
         experience_breakdown, job_title, certifications, match_score, fit_summary, created_at
     FROM resume
     ORDER BY
-        created_at DESC,
-        COALESCE(match_score, -1) DESC
+        COALESCE(match_score, -1) DESC,
+        created_at DESC
     """
     with connect_db() as conn:
         df = pd.read_sql(select_query, conn)
