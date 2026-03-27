@@ -82,9 +82,13 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY",
 
 client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
+
 # =========================================================
 # DATABASE
 # =========================================================
+
+# CACHED: Keeps the connection alive across page switches
+@st.cache_resource
 def connect_db():
     try:
         database_url = os.getenv("DATABASE_URL")
@@ -102,6 +106,8 @@ def connect_db():
         raise
 
 
+# CACHED: Only runs once per app start
+@st.cache_resource
 def init_db():
     create_table_query = """
     CREATE TABLE IF NOT EXISTS resume (
@@ -164,6 +170,7 @@ def init_db():
                 cursor.execute(query)
         conn.commit()
 
+
 # =========================================================
 # HELPERS
 # =========================================================
@@ -181,6 +188,8 @@ def read_pdf_text(uploaded_file):
         return ""
 
 
+# CACHED: Doesn't re-encode the image file on every rerun
+@st.cache_data
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, "rb") as f:
         data = f.read()
@@ -495,6 +504,8 @@ def upsert_resume(file_name, result):
         conn.commit()
 
 
+# CACHED: Speeds up data display across the app
+@st.cache_data(ttl=600)
 def load_resumes():
     select_query = """
     SELECT
@@ -525,6 +536,11 @@ except Exception as e:
 # =========================================================
 st.markdown("""
 <style>
+/* PREVENT BLACK FLASH BY FORCING BACKGROUND EARLY */
+.stApp {
+    background: radial-gradient(circle at top left, #fafdff 0%, #f5f9fb 30%, #eff5f7 100%) !important;
+}
+
 :root {
     --primary: #0f6f83;
     --primary-dark: #0a5665;
@@ -541,6 +557,38 @@ st.markdown("""
     --muted: #6f8e97;
     --shadow: 0 10px 30px rgba(15, 111, 131, 0.08);
     --shadow-soft: 0 6px 18px rgba(15, 111, 131, 0.06);
+}
+
+/* CUSTOM LOADING OVERLAY */
+#custom-loader {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #ffffff;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 6px solid #eef2f7;
+    border-top: 6px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.loading-text {
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
 }
 
 [data-testid="stSidebarNav"] {
@@ -571,11 +619,6 @@ textarea:focus {
 
 html, body, [class*="css"] {
     font-family: "Segoe UI", Arial, sans-serif;
-}
-
-.stApp {
-    background: radial-gradient(circle at top left, #fafdff 0%, #f5f9fb 30%, #eff5f7 100%);
-    color: var(--text);
 }
 
 #MainMenu {visibility: hidden;}
@@ -784,6 +827,7 @@ textarea,
     margin-bottom: 2px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    margin-top: 10px;
 }
 
 .detail-value {
@@ -876,6 +920,28 @@ h2, h3 {
     padding-top: 2px;
 }
 </style>
+
+<div id="custom-loader">
+    <div class="spinner"></div>
+    <div class="loading-text">IT SOLUTIONS WORLDWIDE | INITIALIZING...</div>
+</div>
+
+<script>
+const attachLoader = () => {
+    const buttons = window.parent.document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        if (!btn.dataset.loaderAttached) {
+            btn.addEventListener('click', () => {
+                window.parent.document.getElementById('custom-loader').style.display = 'flex';
+            });
+            btn.dataset.loaderAttached = "true";
+        }
+    });
+};
+attachLoader();
+const observer = new MutationObserver(attachLoader);
+observer.observe(window.parent.document.body, { childList: true, subtree: true });
+</script>
 """, unsafe_allow_html=True)
 
 # =========================================================
@@ -966,6 +1032,9 @@ if clear_ui_clicked:
     # 4. SET THE FILTER TIME TO NOW TO HIDE OLD RESUMES
     st.session_state["view_filter_time"] = datetime.now()
 
+    # CLEAR THE CACHE SO THE UI REFRESHES
+    st.cache_data.clear()
+
     st.rerun()
 
 # =========================================================
@@ -1024,6 +1093,8 @@ if analyze_clicked:
                     processed_count = sum(results)
 
             if processed_count > 0:
+                # IMPORTANT: Clear data cache after analysis so new results show up
+                st.cache_data.clear()
                 st.success(f"Analysis completed successfully. Processed: {processed_count}")
                 st.rerun()
             else:
@@ -1172,8 +1243,7 @@ if not df.empty and not st.session_state.get("hide_results", False):
                 if breakdown_value:
                     st.markdown(
                         f'<div class="detail-label">Experience Breakdown</div><div class="detail-value">{breakdown_value}</div>',
-                        unsafe_allow_html=True
-                    )
+                        unsafe_allow_html=True)
         st.markdown("")
 elif df.empty:
     st.info("No resumes found in the current session. Upload some to get started.")
