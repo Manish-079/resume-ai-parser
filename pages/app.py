@@ -87,8 +87,8 @@ client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 # DATABASE
 # =========================================================
 
-# CACHED: Keeps the connection alive across page switches
-@st.cache_resource
+# FIXED: Added validation to prevent "Connection is closed" error
+@st.cache_resource(validate=lambda conn: not conn.closed)
 def connect_db():
     try:
         database_url = os.getenv("DATABASE_URL")
@@ -529,7 +529,7 @@ def load_resumes():
 try:
     init_db()
 except Exception as e:
-    st.error(f"Database initialization error: {e}")
+    st.error(f"Database error: {e}")
 
 # =========================================================
 # CSS
