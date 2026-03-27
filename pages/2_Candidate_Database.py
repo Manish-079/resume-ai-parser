@@ -56,8 +56,8 @@ if "candidate_ai_matches" not in st.session_state:
 # DATABASE
 # =========================================================
 
-# CACHED: Prevents reopening connection on every page switch
-@st.cache_resource
+# FIXED: Added validation to prevent "Connection is closed" error across page switches
+@st.cache_resource(validate=lambda conn: not conn.closed)
 def connect_db():
     try:
         return psycopg.connect(st.secrets["DATABASE_URL"])
@@ -562,6 +562,11 @@ def clear_ai_state():
 # =========================================================
 st.markdown("""
 <style>
+/* PREVENT BLACK FLASH BY FORCING BACKGROUND EARLY */
+.stApp {
+    background: radial-gradient(circle at top left, #fafdff 0%, #f5f9fb 30%, #eff5f7 100%) !important;
+}
+
 :root {
     --primary: #0f6f83;
     --primary-dark: #0a5665;
@@ -588,6 +593,38 @@ st.markdown("""
     --radius-lg: 18px;
     --radius-md: 14px;
     --radius-sm: 12px;
+}
+
+/* CUSTOM LOADING OVERLAY */
+#custom-loader {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #ffffff;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 6px solid #eef2f7;
+    border-top: 6px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.loading-text {
+    color: var(--primary);
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
 }
 
 [data-testid="stSidebarNav"] {
@@ -946,6 +983,9 @@ textarea:focus {
     color: var(--text) !important;
     font-size: 1rem !important;
     font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    min-height: 100% !important;
 }
 
 .stSelectbox svg {
@@ -1241,6 +1281,28 @@ textarea:focus {
     margin: 1rem 0 1.2rem 0;
 }
 </style>
+
+<div id="custom-loader">
+    <div class="spinner"></div>
+    <div class="loading-text">IT SOLUTIONS WORLDWIDE | INITIALIZING...</div>
+</div>
+
+<script>
+const attachLoader = () => {
+    const buttons = window.parent.document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        if (!btn.dataset.loaderAttached) {
+            btn.addEventListener('click', () => {
+                window.parent.document.getElementById('custom-loader').style.display = 'flex';
+            });
+            btn.dataset.loaderAttached = "true";
+        }
+    });
+};
+attachLoader();
+const observer = new MutationObserver(attachLoader);
+observer.observe(window.parent.document.body, { childList: true, subtree: true });
+</script>
 """, unsafe_allow_html=True)
 
 st.markdown("""
