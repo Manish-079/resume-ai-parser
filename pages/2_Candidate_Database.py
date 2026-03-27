@@ -33,7 +33,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
 
-# Zorg dat de client alleen wordt aangemaakt als er een key is, 
+# Zorg dat de client alleen wordt aangemaakt als er een key is,
 # anders vangen we dit later op in de functies.
 if OPENAI_API_KEY:
     client = OpenAI(api_key=OPENAI_API_KEY)
@@ -55,6 +55,9 @@ if "candidate_ai_matches" not in st.session_state:
 # =========================================================
 # DATABASE
 # =========================================================
+
+# CACHED: Prevents reopening connection on every page switch
+@st.cache_resource
 def connect_db():
     try:
         return psycopg.connect(st.secrets["DATABASE_URL"])
@@ -62,7 +65,8 @@ def connect_db():
         st.error(f"Database connection failed: {e}")
         raise
 
-
+# CACHED: Keeps data in memory for 10 minutes to speed up filtering/searching
+@st.cache_data(ttl=600)
 def load_resumes(search_query="", min_score=0):
     base_query = """
     SELECT
@@ -127,7 +131,8 @@ def safe_int(value, default=None):
     except Exception:
         return default
 
-
+# CACHED: Prevents heavy base64 processing on every rerun
+@st.cache_data
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, "rb") as f:
         data = f.read()
